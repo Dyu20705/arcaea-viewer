@@ -9,3 +9,6 @@ publish = false
 
 [dependencies]
 arcaea-viewer-core = { path = "../core" }
+
+[dev-dependencies]
+arcaea-viewer-parser = { path = "../parser" }

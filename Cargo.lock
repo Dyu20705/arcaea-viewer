@@ -25,6 +25,7 @@ name = "arcaea-viewer-timing"
 version = "0.0.0"
 dependencies = [
  "arcaea-viewer-core",
+ "arcaea-viewer-parser",
 ]
 
 [[package]]
