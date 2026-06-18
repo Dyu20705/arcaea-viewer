@@ -4,6 +4,7 @@ members = [
     "crates/core",
     "crates/parser",
     "crates/timing",
+    "crates/renderer",
     "crates/analytics",
     "crates/wasm",
 ]

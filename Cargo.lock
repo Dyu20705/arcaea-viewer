@@ -21,6 +21,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arcaea-viewer-renderer"
+version = "0.0.0"
+dependencies = [
+ "arcaea-viewer-core",
+ "arcaea-viewer-parser",
+ "arcaea-viewer-timing",
+]
+
+[[package]]
 name = "arcaea-viewer-timing"
 version = "0.0.0"
 dependencies = [
