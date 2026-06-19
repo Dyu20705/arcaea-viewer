@@ -99,6 +99,17 @@ fn main() {
                     relation_suffix(note)
                 );
             }
+            SnapshotNoteKind::ArcTap => {
+                println!(
+                    "ArcTap #{:<2} {:<8} time={}ms parent_arc={} group={}{}",
+                    note.id.as_u32(),
+                    state_label(note.state),
+                    note.start_time.as_millis(),
+                    note.parent_arc_id.map_or(0, |id| id.as_u32()),
+                    note.timing_group.as_u32(),
+                    relation_suffix(note)
+                );
+            }
         }
     }
 

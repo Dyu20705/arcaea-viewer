@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Arcaea Viewer static chart preview">
+<title>Arcaea-Viewer Static Chart Preview</title>
+<style>text{font-family:Consolas,monospace;font-size:14px;fill:#14213d}.small{font-size:12px}.playfield{fill:#f7f8fc;stroke:#172033;stroke-width:2}.lane{fill:#ffffff;stroke:#9aa4b2;stroke-width:1.5}.lane.alt{fill:#edf2f7}.timing{stroke:#6b7280;stroke-width:2;stroke-dasharray:6 5}.judgement{stroke:#e11d48;stroke-width:5;stroke-linecap:round}.horizon{stroke:#172033;stroke-width:3}.tap{fill:#20a4f3;stroke:#0f172a;stroke-width:2}.hold{fill:#f7b801;fill-opacity:.65;stroke:#7c4a03;stroke-width:2}.arctap{fill:#f9fafb;stroke:#7c3aed;stroke-width:4}.arc-blue{fill:none;stroke:#2563eb;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-red{fill:none;stroke:#dc2626;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-green{fill:none;stroke:#16a34a;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.passed{opacity:.55}.active{filter:url(#activeGlow)}.label{fill:#111827;font-size:12px}.summary{fill:#111827;font-size:13px}</style>
+<defs><filter id="activeGlow"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#111827" flood-opacity="0.35"/></filter></defs>
+<rect width="100%" height="100%" fill="#f4f0e8"/>
+<text id="preview-title" x="32" y="34" font-size="22" font-weight="700">Chart Preview</text>
+<text id="fixture-name" x="32" y="58">Fixture: fixtures/checkpoint9_mixed.aff</text>
+<text id="playback-time" x="32" y="80">Playback: 500ms</text>
+<text id="visible-window" x="32" y="102">Visible window: 0..2500ms</text>
+<g id="playfield" data-viewport="1280x720">
+<polygon id="playfield-surface" class="playfield" points="120.00,600.00 1160.00,600.00 941.60,120.00 338.40,120.00"/>
+<line id="horizon" class="horizon" x1="338.40" y1="120.00" x2="941.60" y2="120.00"/>
+<polygon id="lane-1" class="lane" data-layer="10" points="120.00,600.00 380.00,600.00 489.20,120.00 338.40,120.00"><title>Lane 1</title></polygon>
+<polygon id="lane-2" class="lane alt" data-layer="10" points="380.00,600.00 640.00,600.00 640.00,120.00 489.20,120.00"><title>Lane 2</title></polygon>
+<polygon id="lane-3" class="lane" data-layer="10" points="640.00,600.00 900.00,600.00 790.80,120.00 640.00,120.00"><title>Lane 3</title></polygon>
+<polygon id="lane-4" class="lane alt" data-layer="10" points="900.00,600.00 1160.00,600.00 941.60,120.00 790.80,120.00"><title>Lane 4</title></polygon>
+<line id="timing-marker-0-0" class="timing" data-time="0" data-timing-group-id="0" data-layer="20" x1="120.00" y1="600.00" x2="1160.00" y2="600.00"><title>Timing Group=0 0ms 120.000 BPM</title></line>
+<line id="timing-marker-1-0" class="timing" data-time="0" data-timing-group-id="1" data-layer="20" x1="120.00" y1="600.00" x2="1160.00" y2="600.00"><title>Timing Group=1 0ms 180.000 BPM</title></line>
+<polygon id="note-1-hold" class="hold upcoming" data-note-id="1" data-event-kind="hold" data-timing-group-id="0" data-layer="30" data-state="Upcoming" data-clipped-judgement="false" data-clipped-horizon="true" points="418.22,432.00 640.00,432.00 640.00,120.00 489.20,120.00"><title>Hold NoteId=1 Upcoming</title></polygon>
+<text class="label" x="648.00" y="112.00">Hold NoteId=1 Upcoming</text>
+<polyline id="note-2-arc" class="arc-blue upcoming" data-note-id="2" data-event-kind="arc" data-timing-group-id="1" data-layer="40" data-state="Upcoming" data-curve="SineInOut" data-color="Blue" data-trace="false" data-samples="8" points="400.07,336.00 453.69,306.00 503.68,276.00 549.67,246.00 591.39,216.00 628.62,186.00 661.20,156.00 689.08,126.00"><title>Arc NoteId=2 Upcoming</title></polyline>
+<text class="label" x="697.08" y="118.00">Arc NoteId=2 Upcoming</text>
+<circle id="note-3-arctap" class="arctap upcoming" data-note-id="3" data-event-kind="arctap" data-parent-arc-id="2" data-timing-group-id="1" data-layer="45" data-state="Upcoming" data-arc-progress="0.2000" cx="558.37" cy="240.00" r="10"><title>ArcTap NoteId=3 ParentArcId=2 Group=1 Upcoming</title></circle>
+<text class="label" x="566.37" y="232.00">ArcTap NoteId=3 ParentArcId=2 Group=1 Upcoming</text>
+<rect id="note-0-tap" class="tap upcoming" data-note-id="0" data-event-kind="tap" data-timing-group-id="0" data-layer="50" data-state="Upcoming" x="261.76" y="495.00" width="42" height="18" rx="3"><title>Tap NoteId=0 Upcoming</title></rect>
+<text class="label" x="290.76" y="496.00">Tap NoteId=0 Upcoming</text>
+<rect id="note-5-tap" class="tap upcoming" data-note-id="5" data-event-kind="tap" data-timing-group-id="1" data-layer="50" data-state="Upcoming" x="869.77" y="183.00" width="42" height="18" rx="3"><title>Tap NoteId=5 Upcoming</title></rect>
+<text class="label" x="898.77" y="184.00">Tap NoteId=5 Upcoming</text>
+<line id="judgement-line" class="judgement" data-layer="60" data-playback-cursor="true" x1="120.00" y1="600.00" x2="1160.00" y2="600.00"><title>Judgement line</title></line>
+<text class="label" data-layer="70" x="337.88" y="148.80">Playback 500ms</text>
+</g>
+<g id="debug-summary"><text class="summary" x="32" y="690">Lanes=4 Visible taps=2 Visible holds=1 Visible arcs=1 Visible arc taps=1 Hidden notes=6 Primitive count=13</text></g>
+</svg>

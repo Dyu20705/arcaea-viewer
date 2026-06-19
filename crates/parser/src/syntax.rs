@@ -2,7 +2,7 @@ use arcaea_viewer_core::{ArcColor, ArcCurve};
 
 use crate::{Diagnostic, Span};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Spanned<T> {
     pub(crate) value: T,
     pub(crate) span: Span,
@@ -10,21 +10,29 @@ pub(crate) struct Spanned<T> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum SyntaxEvent {
+    TimingGroupDefinition {
+        timing_group_id: u32,
+        properties: Vec<Spanned<String>>,
+    },
     Tap {
+        timing_group_id: u32,
         time: Spanned<i64>,
         lane: Spanned<u8>,
     },
     Hold {
+        timing_group_id: u32,
         start_time: Spanned<i64>,
         end_time: Spanned<i64>,
         lane: Spanned<u8>,
     },
     Timing {
+        timing_group_id: u32,
         time: Spanned<i64>,
         tempo_milli_bpm: Spanned<u32>,
         beats_per_measure: Spanned<u16>,
     },
     Arc {
+        timing_group_id: u32,
         start_time: Spanned<i64>,
         end_time: Spanned<i64>,
         start_x: Spanned<f32>,
@@ -34,6 +42,7 @@ pub(crate) enum SyntaxEvent {
         end_y: Spanned<f32>,
         color: Spanned<ArcColor>,
         is_trace: Spanned<bool>,
+        arc_taps: Vec<Spanned<i64>>,
     },
 }
 
@@ -51,21 +60,62 @@ impl<'a> SyntaxParser<'a> {
         let mut events = Vec::new();
         let mut diagnostics = Vec::new();
         let mut line_start = 0_usize;
+        let mut current_group_id = 0_u32;
+        let mut open_group_span: Option<Span> = None;
+        let mut next_group_id = 1_u32;
 
         for raw_line in self.source.split_inclusive('\n') {
             let line = raw_line.strip_suffix('\n').unwrap_or(raw_line);
             let line = line.strip_suffix('\r').unwrap_or(line);
-            if let Some(event) = self.parse_line(line, line_start, &mut diagnostics) {
-                events.push(event);
+            if let Some((text, span_start)) = content_text(line, line_start) {
+                if text.starts_with("timinggroup") {
+                    if open_group_span.is_some() {
+                        diagnostics.push(Diagnostic::syntax(
+                            "nested timinggroup blocks are not supported",
+                            Span::new(span_start, span_start + text.len()),
+                            None,
+                            Some("close the current timinggroup before starting another one"),
+                        ));
+                    } else if let Some(properties) =
+                        parse_timing_group_open(text, span_start, &mut diagnostics)
+                    {
+                        let timing_group_id = next_group_id;
+                        next_group_id += 1;
+                        current_group_id = timing_group_id;
+                        open_group_span = Some(Span::new(span_start, span_start + text.len()));
+                        events.push(SyntaxEvent::TimingGroupDefinition {
+                            timing_group_id,
+                            properties,
+                        });
+                    }
+                } else if text == "};" {
+                    if open_group_span.is_some() {
+                        current_group_id = 0;
+                        open_group_span = None;
+                    } else {
+                        diagnostics.push(Diagnostic::syntax(
+                            "unexpected timinggroup close",
+                            Span::new(span_start, span_start + text.len()),
+                            None,
+                            Some("remove `};` or add a matching timinggroup opening line"),
+                        ));
+                    }
+                } else if let Some(event) =
+                    self.parse_line(text, span_start, current_group_id, &mut diagnostics)
+                {
+                    events.push(event);
+                }
             }
             line_start += raw_line.len();
         }
 
-        if self.source.is_empty() {
-            return (events, diagnostics);
-        }
-        if !self.source.ends_with('\n') {
-            return (events, diagnostics);
+        if let Some(span) = open_group_span {
+            diagnostics.push(Diagnostic::syntax(
+                "unterminated timinggroup block",
+                span,
+                None,
+                Some("close the timinggroup block with `};`"),
+            ));
         }
 
         (events, diagnostics)
@@ -73,24 +123,13 @@ impl<'a> SyntaxParser<'a> {
 
     fn parse_line(
         &self,
-        line: &str,
-        line_start: usize,
+        text: &str,
+        span_start: usize,
+        timing_group_id: u32,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<SyntaxEvent> {
-        let content_len = line.find("//").unwrap_or(line.len());
-        let content = &line[..content_len];
-        let leading = content.len() - content.trim_start().len();
-        let trailing = content.trim_end().len();
-
-        if leading >= trailing {
-            return None;
-        }
-
-        let text = &content[leading..trailing];
-        let span_start = line_start + leading;
-
         if text.starts_with('(') {
-            return self.parse_tap(text, span_start, diagnostics);
+            return self.parse_tap(text, span_start, timing_group_id, diagnostics);
         }
 
         let Some(name_end) = text.find('(') else {
@@ -108,9 +147,17 @@ impl<'a> SyntaxParser<'a> {
 
         let name = &text[..name_end];
         match name {
-            "timing" => self.parse_timing(text, span_start, diagnostics),
-            "hold" => self.parse_hold(text, span_start, diagnostics),
-            "arc" => self.parse_arc(text, span_start, diagnostics),
+            "timing" => self.parse_timing(text, span_start, timing_group_id, diagnostics),
+            "hold" => self.parse_hold(text, span_start, timing_group_id, diagnostics),
+            "arc" => self.parse_arc(text, span_start, timing_group_id, diagnostics),
+            "arctap" => {
+                diagnostics.push(Diagnostic::unsupported(
+                    "arc tap without parent arc",
+                    Span::new(span_start, span_start + name_end),
+                    "arctap must appear inside an arc extension block".into(),
+                ));
+                None
+            }
             unsupported => {
                 diagnostics.push(Diagnostic::unsupported(
                     "unsupported AFF event",
@@ -126,6 +173,7 @@ impl<'a> SyntaxParser<'a> {
         &self,
         text: &str,
         base: usize,
+        timing_group_id: u32,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<SyntaxEvent> {
         let fields = parse_call_fields(text, base, None, diagnostics)?;
@@ -140,6 +188,7 @@ impl<'a> SyntaxParser<'a> {
         }
 
         Some(SyntaxEvent::Tap {
+            timing_group_id,
             time: parse_i64(fields[0], diagnostics)?,
             lane: parse_u8(fields[1], diagnostics)?,
         })
@@ -149,6 +198,7 @@ impl<'a> SyntaxParser<'a> {
         &self,
         text: &str,
         base: usize,
+        timing_group_id: u32,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<SyntaxEvent> {
         let fields = parse_call_fields(text, base, Some("hold"), diagnostics)?;
@@ -163,6 +213,7 @@ impl<'a> SyntaxParser<'a> {
         }
 
         Some(SyntaxEvent::Hold {
+            timing_group_id,
             start_time: parse_i64(fields[0], diagnostics)?,
             end_time: parse_i64(fields[1], diagnostics)?,
             lane: parse_u8(fields[2], diagnostics)?,
@@ -173,6 +224,7 @@ impl<'a> SyntaxParser<'a> {
         &self,
         text: &str,
         base: usize,
+        timing_group_id: u32,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<SyntaxEvent> {
         let fields = parse_call_fields(text, base, Some("timing"), diagnostics)?;
@@ -187,6 +239,7 @@ impl<'a> SyntaxParser<'a> {
         }
 
         Some(SyntaxEvent::Timing {
+            timing_group_id,
             time: parse_i64(fields[0], diagnostics)?,
             tempo_milli_bpm: parse_milli_bpm(fields[1], diagnostics)?,
             beats_per_measure: parse_u16(fields[2], diagnostics)?,
@@ -197,18 +250,38 @@ impl<'a> SyntaxParser<'a> {
         &self,
         text: &str,
         base: usize,
+        timing_group_id: u32,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Option<SyntaxEvent> {
-        if text.contains('[') || text.contains(']') {
-            diagnostics.push(Diagnostic::unsupported(
-                "unsupported arc extension",
+        let (call_text, arc_taps) = if let Some(open) = text.find('[') {
+            let close = text.rfind(']')?;
+            if close + 2 != text.len() || !text.ends_with("];") {
+                diagnostics.push(Diagnostic::syntax(
+                    "arc extension must end with `];`",
+                    Span::new(base + open, base + text.len()),
+                    None,
+                    Some("expected arc(...)[arctap(time),...];"),
+                ));
+                return None;
+            }
+            let prefix = text[..open].trim_end();
+            let mut owned = prefix.to_owned();
+            owned.push(';');
+            let taps = parse_arc_taps(&text[open + 1..close], base + open + 1, diagnostics)?;
+            (owned, taps)
+        } else if text.contains(']') {
+            diagnostics.push(Diagnostic::syntax(
+                "unexpected arc extension close",
                 Span::new(base, base + text.len()),
-                "arc taps and arc extension blocks are outside this checkpoint".into(),
+                None,
+                None,
             ));
             return None;
-        }
+        } else {
+            (text.to_owned(), Vec::new())
+        };
 
-        let fields = parse_call_fields(text, base, Some("arc"), diagnostics)?;
+        let fields = parse_call_fields(&call_text, base, Some("arc"), diagnostics)?;
         if fields.len() != 10 {
             diagnostics.push(Diagnostic::syntax(
                 "arc note expects 10 fields",
@@ -220,6 +293,7 @@ impl<'a> SyntaxParser<'a> {
         }
 
         Some(SyntaxEvent::Arc {
+            timing_group_id,
             start_time: parse_i64(fields[0], diagnostics)?,
             end_time: parse_i64(fields[1], diagnostics)?,
             start_x: parse_f32(fields[2], diagnostics)?,
@@ -229,8 +303,155 @@ impl<'a> SyntaxParser<'a> {
             end_y: parse_f32(fields[6], diagnostics)?,
             color: parse_color(fields[7], diagnostics)?,
             is_trace: parse_bool(fields[9], diagnostics)?,
+            arc_taps,
         })
     }
+}
+
+fn content_text(line: &str, line_start: usize) -> Option<(&str, usize)> {
+    let content_len = line.find("//").unwrap_or(line.len());
+    let content = &line[..content_len];
+    let leading = content.len() - content.trim_start().len();
+    let trailing = content.trim_end().len();
+
+    if leading >= trailing {
+        None
+    } else {
+        Some((&content[leading..trailing], line_start + leading))
+    }
+}
+
+fn parse_timing_group_open(
+    text: &str,
+    base: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<Vec<Spanned<String>>> {
+    if !text.ends_with('{') {
+        diagnostics.push(Diagnostic::syntax(
+            "timinggroup block must end with `{`",
+            Span::new(base, base + text.len()),
+            None,
+            Some("expected timinggroup(...){"),
+        ));
+        return None;
+    }
+
+    let head = text[..text.len() - 1].trim_end();
+    if head == "timinggroup" {
+        return Some(Vec::new());
+    }
+    if !head.starts_with("timinggroup(") || !head.ends_with(')') {
+        diagnostics.push(Diagnostic::syntax(
+            "expected timinggroup properties",
+            Span::new(base, base + text.len()),
+            None,
+            Some("expected timinggroup(noinput,noclip){ or timinggroup(){"),
+        ));
+        return None;
+    }
+
+    let inner_start = "timinggroup(".len();
+    let inner = &head[inner_start..head.len() - 1];
+    if inner.trim().is_empty() {
+        return Some(Vec::new());
+    }
+
+    let mut properties = Vec::new();
+    let mut field_start = 0_usize;
+    for (index, byte) in inner.bytes().enumerate() {
+        if byte == b',' {
+            properties.push(trim_string_field(
+                inner,
+                inner_start,
+                field_start,
+                index,
+                base,
+            ));
+            field_start = index + 1;
+        }
+    }
+    properties.push(trim_string_field(
+        inner,
+        inner_start,
+        field_start,
+        inner.len(),
+        base,
+    ));
+
+    if properties.iter().any(|property| property.value.is_empty()) {
+        diagnostics.push(Diagnostic::syntax(
+            "empty timinggroup property",
+            Span::new(base, base + text.len()),
+            None,
+            Some("remove the empty property or provide a supported property name"),
+        ));
+        return None;
+    }
+    Some(properties)
+}
+
+fn parse_arc_taps(
+    inner: &str,
+    base: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<Vec<Spanned<i64>>> {
+    let mut taps = Vec::new();
+    let mut cursor = 0_usize;
+    while cursor < inner.len() {
+        while inner
+            .as_bytes()
+            .get(cursor)
+            .is_some_and(u8::is_ascii_whitespace)
+        {
+            cursor += 1;
+        }
+        if cursor >= inner.len() {
+            break;
+        }
+        if !inner[cursor..].starts_with("arctap(") {
+            diagnostics.push(Diagnostic::unsupported(
+                "unsupported arc extension",
+                Span::new(base + cursor, base + inner.len()),
+                "only arctap(time) is supported in arc extension blocks".into(),
+            ));
+            return None;
+        }
+        let value_start = cursor + "arctap(".len();
+        let Some(close_offset) = inner[value_start..].find(')') else {
+            diagnostics.push(Diagnostic::syntax(
+                "unterminated arctap",
+                Span::new(base + cursor, base + inner.len()),
+                None,
+                Some("expected arctap(time)"),
+            ));
+            return None;
+        };
+        let value_end = value_start + close_offset;
+        let field = trim_field(inner, 0, value_start, value_end, base);
+        taps.push(parse_i64(field, diagnostics)?);
+        cursor = value_end + 1;
+        while inner
+            .as_bytes()
+            .get(cursor)
+            .is_some_and(u8::is_ascii_whitespace)
+        {
+            cursor += 1;
+        }
+        if cursor < inner.len() {
+            if inner.as_bytes().get(cursor) == Some(&b',') {
+                cursor += 1;
+            } else {
+                diagnostics.push(Diagnostic::syntax(
+                    "expected comma between arctaps",
+                    Span::new(base + cursor, base + cursor + 1),
+                    None,
+                    Some("expected arctap(a),arctap(b)"),
+                ));
+                return None;
+            }
+        }
+    }
+    Some(taps)
 }
 
 fn parse_call_fields<'a>(
@@ -334,6 +555,20 @@ fn trim_field<'a>(
     Field {
         text: &inner[start..end],
         span: Span::new(base + inner_start + start, base + inner_start + end),
+    }
+}
+
+fn trim_string_field(
+    inner: &str,
+    inner_start: usize,
+    raw_start: usize,
+    raw_end: usize,
+    base: usize,
+) -> Spanned<String> {
+    let field = trim_field(inner, inner_start, raw_start, raw_end, base);
+    Spanned {
+        value: field.text.to_owned(),
+        span: field.span,
     }
 }
 

@@ -9,7 +9,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use arcaea_viewer_core::{Chart, ChartEvent, ChartTime, NoteId, Tempo};
+use arcaea_viewer_core::{
+    ArcNote, Chart, ChartEvent, ChartTime, NoteId, Tempo, TimingGroupId, arc_position_at,
+};
 
 /// Small epsilon used only for tests and presentation checks around `f64` beat math.
 pub const BEAT_EPSILON: f64 = 0.000_001;
@@ -62,7 +64,17 @@ pub enum TimingError {
     /// A chart has no timing event, so tempo and beat position are undefined.
     MissingInitialTiming,
     /// Two timing events use the same timestamp.
-    DuplicateTimingAtSameTimestamp { time: ChartTime },
+    DuplicateTimingAtSameTimestamp {
+        /// Timing group where the duplicate occurred.
+        timing_group: TimingGroupId,
+        /// Duplicate chart timestamp.
+        time: ChartTime,
+    },
+    /// A declared timing group has notes but no local timing event.
+    MissingTimingForGroup {
+        /// Timing group missing local timing data.
+        timing_group: TimingGroupId,
+    },
     /// Beat math produced a non-finite value.
     NonFiniteBeatValue,
     /// File-system operation failed.
@@ -77,9 +89,14 @@ impl fmt::Display for TimingError {
             Self::MissingInitialTiming => {
                 write!(f, "MISSING_INITIAL_TIMING: chart has no timing events")
             }
-            Self::DuplicateTimingAtSameTimestamp { time } => write!(
+            Self::DuplicateTimingAtSameTimestamp { time, .. } => write!(
                 f,
                 "DUPLICATE_TIMING_AT_SAME_TIMESTAMP: duplicate timing event at {time}"
+            ),
+            Self::MissingTimingForGroup { timing_group } => write!(
+                f,
+                "MISSING_TIMING_FOR_GROUP: timing group {} has no local timing events",
+                timing_group.as_u32()
             ),
             Self::NonFiniteBeatValue => write!(
                 f,
@@ -113,21 +130,31 @@ pub struct TimingMap {
 }
 
 impl TimingMap {
-    /// Builds a timing map by sorting chart timing events without mutating the chart.
+    /// Builds the root timing map by sorting root timing events without mutating the chart.
     ///
     /// Semantics for this checkpoint:
     /// - at least one timing event is required;
     /// - duplicate timing timestamps are rejected;
     /// - the first timing event extends backward for queries before it.
     pub fn from_chart(chart: &Chart) -> Result<Self, TimingError> {
+        Self::from_chart_for_group(chart, TimingGroupId::ROOT)
+    }
+
+    /// Builds a timing map for one timing group without mutating the chart.
+    pub fn from_chart_for_group(
+        chart: &Chart,
+        timing_group: TimingGroupId,
+    ) -> Result<Self, TimingError> {
         let mut segments: Vec<TimingSegment> = chart
             .events()
             .iter()
             .filter_map(|event| match event {
-                ChartEvent::Timing(timing) => Some(TimingSegment {
-                    time: timing.time(),
-                    tempo: timing.tempo(),
-                }),
+                ChartEvent::Timing(timing) if timing.timing_group() == timing_group => {
+                    Some(TimingSegment {
+                        time: timing.time(),
+                        tempo: timing.tempo(),
+                    })
+                }
                 _ => None,
             })
             .collect();
@@ -141,6 +168,7 @@ impl TimingMap {
         for window in segments.windows(2) {
             if window[0].time == window[1].time {
                 return Err(TimingError::DuplicateTimingAtSameTimestamp {
+                    timing_group,
                     time: window[0].time,
                 });
             }
@@ -218,6 +246,89 @@ impl TimingMap {
     }
 }
 
+/// Chart timing context containing the root map and local maps for timing groups.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimingContext {
+    root: TimingMap,
+    groups: Vec<(TimingGroupId, TimingMap)>,
+}
+
+impl TimingContext {
+    /// Builds timing context for every declared group in the chart.
+    pub fn from_chart(chart: &Chart) -> Result<Self, TimingError> {
+        let root = TimingMap::from_chart(chart)?;
+        let mut groups = Vec::new();
+        for group in chart.timing_groups() {
+            if group.id() == TimingGroupId::ROOT {
+                continue;
+            }
+            match TimingMap::from_chart_for_group(chart, group.id()) {
+                Ok(map) => groups.push((group.id(), map)),
+                Err(TimingError::MissingInitialTiming) => {
+                    return Err(TimingError::MissingTimingForGroup {
+                        timing_group: group.id(),
+                    });
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(Self { root, groups })
+    }
+
+    /// Creates a root-only context for legacy callers.
+    #[must_use]
+    pub fn from_root_map(root: TimingMap) -> Self {
+        Self {
+            root,
+            groups: Vec::new(),
+        }
+    }
+
+    /// Returns the root timing map.
+    #[must_use]
+    pub const fn root(&self) -> &TimingMap {
+        &self.root
+    }
+
+    /// Returns declared group timing maps in stable order.
+    #[must_use]
+    pub fn groups(&self) -> &[(TimingGroupId, TimingMap)] {
+        &self.groups
+    }
+
+    /// Returns the map for `timing_group`, falling back to root only for root.
+    #[must_use]
+    pub fn timing_map_for_group(&self, timing_group: TimingGroupId) -> Option<&TimingMap> {
+        if timing_group == TimingGroupId::ROOT {
+            Some(&self.root)
+        } else {
+            self.groups
+                .iter()
+                .find_map(|(id, map)| (*id == timing_group).then_some(map))
+        }
+    }
+
+    /// Returns ordered timing events by group, root first.
+    #[must_use]
+    pub fn timing_events_by_group(&self) -> Vec<(TimingGroupId, ChartTime, Tempo)> {
+        let mut events = Vec::new();
+        events.extend(
+            self.root
+                .timing_events()
+                .into_iter()
+                .map(|(time, tempo)| (TimingGroupId::ROOT, time, tempo)),
+        );
+        for (group, map) in &self.groups {
+            events.extend(
+                map.timing_events()
+                    .into_iter()
+                    .map(|(time, tempo)| (*group, time, tempo)),
+            );
+        }
+        events
+    }
+}
+
 /// Playback state for one note at a queried timestamp.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoteState {
@@ -238,6 +349,8 @@ pub enum SnapshotNoteKind {
     Hold,
     /// Sky arc note.
     Arc,
+    /// Sky arc tap attached to a parent arc.
+    ArcTap,
 }
 
 impl fmt::Display for SnapshotNoteKind {
@@ -246,8 +359,20 @@ impl fmt::Display for SnapshotNoteKind {
             Self::Tap => write!(f, "Tap"),
             Self::Hold => write!(f, "Hold"),
             Self::Arc => write!(f, "Arc"),
+            Self::ArcTap => write!(f, "ArcTap"),
         }
     }
+}
+
+/// Normalized arc-tap position derived from its parent arc.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SnapshotArcPosition {
+    /// Normalized horizontal playfield coordinate.
+    pub x: f32,
+    /// Normalized sky-height coordinate.
+    pub sky_y: f32,
+    /// Normalized progress along parent arc.
+    pub progress: f32,
 }
 
 /// Snapshot data for a single note.
@@ -259,6 +384,16 @@ pub struct SnapshotNote {
     pub kind: SnapshotNoteKind,
     /// Source-order index of the original chart event.
     pub source_index: usize,
+    /// Timing group used for local timing evaluation.
+    pub timing_group: TimingGroupId,
+    /// Local tempo for the note's timing group at playback time.
+    pub local_tempo: Tempo,
+    /// Local beat position for the note's timing group at playback time.
+    pub local_beat_position: BeatPosition,
+    /// Parent arc ID for arc taps.
+    pub parent_arc_id: Option<NoteId>,
+    /// Arc-derived position for arc taps.
+    pub arc_position: Option<SnapshotArcPosition>,
     /// Start time for taps and interval notes.
     pub start_time: ChartTime,
     /// End time for holds/arcs, or tap time for taps.
@@ -301,19 +436,58 @@ pub fn snapshot_at(
     timing_map: &TimingMap,
     playback_time: ChartTime,
 ) -> PlaybackSnapshot {
+    let context = TimingContext::from_root_map(timing_map.clone());
+    snapshot_with_context(chart, &context, playback_time)
+}
+
+/// Queries playback state with timing-group local timing maps.
+#[must_use]
+pub fn snapshot_with_context(
+    chart: &Chart,
+    timing_context: &TimingContext,
+    playback_time: ChartTime,
+) -> PlaybackSnapshot {
+    let arcs: Vec<ArcNote> = chart
+        .events()
+        .iter()
+        .filter_map(|event| match event {
+            ChartEvent::Arc(arc) => Some(*arc),
+            _ => None,
+        })
+        .collect();
     let notes = chart
         .events()
         .iter()
         .enumerate()
         .filter_map(|(source_index, event)| match event {
-            ChartEvent::Tap(tap) => Some(snapshot_tap(source_index, *tap, playback_time)),
+            ChartEvent::Tap(tap) => Some(snapshot_tap(
+                source_index,
+                tap.id(),
+                SnapshotNoteKind::Tap,
+                tap.time(),
+                tap.time(),
+                tap.timing_group(),
+                timing_context,
+                playback_time,
+                None,
+                None,
+            )),
             ChartEvent::Hold(hold) => Some(SnapshotNote {
                 id: hold.id(),
                 kind: SnapshotNoteKind::Hold,
                 source_index,
                 start_time: hold.start_time(),
                 end_time: hold.end_time(),
-                ..snapshot_interval(playback_time, hold.start_time(), hold.end_time())
+                timing_group: hold.timing_group(),
+                parent_arc_id: None,
+                arc_position: None,
+                ..snapshot_interval(
+                    playback_time,
+                    hold.start_time(),
+                    hold.end_time(),
+                    hold.timing_group(),
+                    timing_context,
+                )
             }),
             ChartEvent::Arc(arc) => Some(SnapshotNote {
                 id: arc.id(),
@@ -321,16 +495,50 @@ pub fn snapshot_at(
                 source_index,
                 start_time: arc.start_time(),
                 end_time: arc.end_time(),
-                ..snapshot_interval(playback_time, arc.start_time(), arc.end_time())
+                timing_group: arc.timing_group(),
+                parent_arc_id: None,
+                arc_position: None,
+                ..snapshot_interval(
+                    playback_time,
+                    arc.start_time(),
+                    arc.end_time(),
+                    arc.timing_group(),
+                    timing_context,
+                )
             }),
+            ChartEvent::ArcTap(arc_tap) => {
+                let parent = arcs
+                    .iter()
+                    .copied()
+                    .find(|arc| arc.id() == arc_tap.parent_arc_id());
+                let position = parent
+                    .and_then(|arc| arc_position_at(arc, arc_tap.time()))
+                    .map(|position| SnapshotArcPosition {
+                        x: position.x,
+                        sky_y: position.y,
+                        progress: position.progress,
+                    });
+                Some(snapshot_tap(
+                    source_index,
+                    arc_tap.id(),
+                    SnapshotNoteKind::ArcTap,
+                    arc_tap.time(),
+                    arc_tap.time(),
+                    arc_tap.timing_group(),
+                    timing_context,
+                    playback_time,
+                    Some(arc_tap.parent_arc_id()),
+                    position,
+                ))
+            }
             ChartEvent::Timing(_) => None,
         })
         .collect();
 
     PlaybackSnapshot {
         playback_time,
-        tempo: timing_map.tempo_at(playback_time),
-        beat_position: timing_map.beat_position_at(playback_time),
+        tempo: timing_context.root().tempo_at(playback_time),
+        beat_position: timing_context.root().beat_position_at(playback_time),
         notes,
     }
 }
@@ -451,7 +659,7 @@ pub fn render_timeline_svg(
         let class = format!("{} {}", note.kind.svg_class(), note.state.svg_class());
         let label = format!("{} #{} {:?}", note.kind, note.id.as_u32(), note.state);
         match note.kind {
-            SnapshotNoteKind::Tap => {
+            SnapshotNoteKind::Tap | SnapshotNoteKind::ArcTap => {
                 let x = scale(note.start_time);
                 svg.push_str(&format!(
                     "<circle class=\"{class}\" cx=\"{x}\" cy=\"{y}\" r=\"8\"><title>{}</title></circle>\n",
@@ -523,6 +731,10 @@ fn timeline_range(chart: &Chart, playback_time: ChartTime) -> Result<TimelineRan
                 min = min.min(arc.start_time().as_millis());
                 max = max.max(arc.end_time().as_millis());
             }
+            ChartEvent::ArcTap(arc_tap) => {
+                min = min.min(arc_tap.time().as_millis());
+                max = max.max(arc_tap.time().as_millis());
+            }
         }
     }
 
@@ -539,44 +751,79 @@ fn timeline_range(chart: &Chart, playback_time: ChartTime) -> Result<TimelineRan
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn snapshot_tap(
     source_index: usize,
-    tap: arcaea_viewer_core::TapNote,
-    time: ChartTime,
+    id: NoteId,
+    kind: SnapshotNoteKind,
+    start_time: ChartTime,
+    end_time: ChartTime,
+    timing_group: TimingGroupId,
+    timing_context: &TimingContext,
+    playback_time: ChartTime,
+    parent_arc_id: Option<NoteId>,
+    arc_position: Option<SnapshotArcPosition>,
 ) -> SnapshotNote {
-    if time < tap.time() {
+    let map = timing_context
+        .timing_map_for_group(timing_group)
+        .unwrap_or_else(|| timing_context.root());
+    if playback_time < start_time {
         SnapshotNote {
-            id: tap.id(),
-            kind: SnapshotNoteKind::Tap,
+            id,
+            kind,
             source_index,
-            start_time: tap.time(),
-            end_time: tap.time(),
+            timing_group,
+            local_tempo: map.tempo_at(playback_time),
+            local_beat_position: map.beat_position_at(playback_time),
+            parent_arc_id,
+            arc_position,
+            start_time,
+            end_time,
             state: NoteState::Upcoming,
             progress: None,
-            starts_in_millis: Some(tap.time().as_millis() - time.as_millis()),
+            starts_in_millis: Some(start_time.as_millis() - playback_time.as_millis()),
             since_end_millis: None,
         }
     } else {
         SnapshotNote {
-            id: tap.id(),
-            kind: SnapshotNoteKind::Tap,
+            id,
+            kind,
             source_index,
-            start_time: tap.time(),
-            end_time: tap.time(),
+            timing_group,
+            local_tempo: map.tempo_at(playback_time),
+            local_beat_position: map.beat_position_at(playback_time),
+            parent_arc_id,
+            arc_position,
+            start_time,
+            end_time,
             state: NoteState::Passed,
             progress: None,
             starts_in_millis: None,
-            since_end_millis: Some(time.as_millis() - tap.time().as_millis()),
+            since_end_millis: Some(playback_time.as_millis() - end_time.as_millis()),
         }
     }
 }
 
-fn snapshot_interval(time: ChartTime, start: ChartTime, end: ChartTime) -> SnapshotNote {
+fn snapshot_interval(
+    time: ChartTime,
+    start: ChartTime,
+    end: ChartTime,
+    timing_group: TimingGroupId,
+    timing_context: &TimingContext,
+) -> SnapshotNote {
+    let map = timing_context
+        .timing_map_for_group(timing_group)
+        .unwrap_or_else(|| timing_context.root());
     if time < start {
         SnapshotNote {
             id: NoteId::new(0),
             kind: SnapshotNoteKind::Hold,
             source_index: 0,
+            timing_group,
+            local_tempo: map.tempo_at(time),
+            local_beat_position: map.beat_position_at(time),
+            parent_arc_id: None,
+            arc_position: None,
             start_time: start,
             end_time: end,
             state: NoteState::Upcoming,
@@ -589,6 +836,11 @@ fn snapshot_interval(time: ChartTime, start: ChartTime, end: ChartTime) -> Snaps
             id: NoteId::new(0),
             kind: SnapshotNoteKind::Hold,
             source_index: 0,
+            timing_group,
+            local_tempo: map.tempo_at(time),
+            local_beat_position: map.beat_position_at(time),
+            parent_arc_id: None,
+            arc_position: None,
             start_time: start,
             end_time: end,
             state: NoteState::Passed,
@@ -601,6 +853,11 @@ fn snapshot_interval(time: ChartTime, start: ChartTime, end: ChartTime) -> Snaps
             id: NoteId::new(0),
             kind: SnapshotNoteKind::Hold,
             source_index: 0,
+            timing_group,
+            local_tempo: map.tempo_at(time),
+            local_beat_position: map.beat_position_at(time),
+            parent_arc_id: None,
+            arc_position: None,
             start_time: start,
             end_time: end,
             state: NoteState::Active,
@@ -652,6 +909,7 @@ impl SnapshotNoteKind {
             Self::Tap => "tap",
             Self::Hold => "hold",
             Self::Arc => "arc",
+            Self::ArcTap => "tap",
         }
     }
 }
@@ -670,7 +928,8 @@ impl NoteState {
 mod tests {
     use super::*;
     use arcaea_viewer_core::{
-        ArcColor, ArcCurve, ArcNote, ArcPath, ArcX, ArcY, HoldNote, Lane, TapNote, TimingEvent,
+        ArcColor, ArcCurve, ArcNote, ArcPath, ArcTapNote, ArcX, ArcY, HoldNote, Lane, TapNote,
+        TimingEvent, TimingGroup, TimingGroupId, TimingGroupProperties,
     };
 
     #[test]
@@ -752,6 +1011,71 @@ mod tests {
         assert!(matches!(
             TimingMap::from_chart(&chart),
             Err(TimingError::DuplicateTimingAtSameTimestamp { .. })
+        ));
+    }
+
+    #[test]
+    fn duplicate_timing_timestamps_are_scoped_by_group() {
+        let group = TimingGroupId::new(1);
+        let chart = Chart::with_timing_groups(
+            vec![
+                ChartEvent::Timing(timing(0, 120_000)),
+                ChartEvent::Timing(timing_in_group(0, 180_000, group)),
+            ],
+            vec![TimingGroup::new(group, TimingGroupProperties::default())],
+        );
+
+        let context = TimingContext::from_chart(&chart).expect("timing context");
+
+        assert_eq!(
+            context
+                .root()
+                .tempo_at(ChartTime::from_millis(0))
+                .as_milli_bpm(),
+            120_000
+        );
+        assert_eq!(
+            context
+                .timing_map_for_group(group)
+                .expect("group map")
+                .tempo_at(ChartTime::from_millis(0))
+                .as_milli_bpm(),
+            180_000
+        );
+    }
+
+    #[test]
+    fn duplicate_timing_timestamps_inside_one_group_are_rejected() {
+        let group = TimingGroupId::new(1);
+        let chart = Chart::with_timing_groups(
+            vec![
+                ChartEvent::Timing(timing(0, 120_000)),
+                ChartEvent::Timing(timing_in_group(0, 180_000, group)),
+                ChartEvent::Timing(timing_in_group(0, 200_000, group)),
+            ],
+            vec![TimingGroup::new(group, TimingGroupProperties::default())],
+        );
+
+        assert!(matches!(
+            TimingContext::from_chart(&chart),
+            Err(TimingError::DuplicateTimingAtSameTimestamp {
+                timing_group,
+                ..
+            }) if timing_group == group
+        ));
+    }
+
+    #[test]
+    fn declared_group_without_local_timing_is_explicit_error() {
+        let group = TimingGroupId::new(1);
+        let chart = Chart::with_timing_groups(
+            vec![ChartEvent::Timing(timing(0, 120_000))],
+            vec![TimingGroup::new(group, TimingGroupProperties::default())],
+        );
+
+        assert!(matches!(
+            TimingContext::from_chart(&chart),
+            Err(TimingError::MissingTimingForGroup { timing_group }) if timing_group == group
         ));
     }
 
@@ -875,6 +1199,59 @@ mod tests {
     }
 
     #[test]
+    fn grouped_snapshot_note_uses_local_timing_map() {
+        let group = TimingGroupId::new(1);
+        let chart = Chart::with_timing_groups(
+            vec![
+                ChartEvent::Timing(timing(0, 120_000)),
+                ChartEvent::Timing(timing_in_group(0, 180_000, group)),
+                ChartEvent::Tap(TapNote::new_in_group(
+                    NoteId::new(0),
+                    ChartTime::from_millis(1_000),
+                    Lane::new(1).expect("lane"),
+                    group,
+                )),
+            ],
+            vec![TimingGroup::new(group, TimingGroupProperties::default())],
+        );
+        let context = TimingContext::from_chart(&chart).expect("timing context");
+
+        let snapshot = snapshot_with_context(&chart, &context, ChartTime::from_millis(500));
+
+        assert_eq!(snapshot.tempo.as_milli_bpm(), 120_000);
+        assert_eq!(snapshot.notes[0].timing_group, group);
+        assert_eq!(snapshot.notes[0].local_tempo.as_milli_bpm(), 180_000);
+        assert!((snapshot.notes[0].local_beat_position.as_f64() - 1.5).abs() < BEAT_EPSILON);
+    }
+
+    #[test]
+    fn arctap_snapshot_preserves_parent_and_arc_position() {
+        let arc = arc(0, 1_000, 3_000);
+        let chart = chart_with_events(vec![
+            ChartEvent::Timing(timing(0, 120_000)),
+            ChartEvent::Arc(arc),
+            ChartEvent::ArcTap(ArcTapNote::new(
+                NoteId::new(1),
+                ChartTime::from_millis(2_000),
+                arc.id(),
+                TimingGroupId::ROOT,
+            )),
+        ]);
+        let map = TimingMap::from_chart(&chart).expect("timing map");
+
+        let snapshot = snapshot_at(&chart, &map, ChartTime::from_millis(1_900));
+        let arctap = snapshot
+            .notes
+            .iter()
+            .find(|note| note.kind == SnapshotNoteKind::ArcTap)
+            .expect("arctap");
+
+        assert_eq!(arctap.parent_arc_id, Some(arc.id()));
+        assert!(arctap.arc_position.is_some());
+        assert_eq!(arctap.state, NoteState::Upcoming);
+    }
+
+    #[test]
     fn svg_output_contains_required_labels() {
         let (chart, map) = snapshot_chart();
         let snapshot = snapshot_at(&chart, &map, ChartTime::from_millis(2_500));
@@ -934,6 +1311,15 @@ mod tests {
             ChartTime::from_millis(time),
             Tempo::from_milli_bpm(milli_bpm).expect("tempo"),
             4,
+        )
+    }
+
+    fn timing_in_group(time: i64, milli_bpm: u32, group: TimingGroupId) -> TimingEvent {
+        TimingEvent::new_in_group(
+            ChartTime::from_millis(time),
+            Tempo::from_milli_bpm(milli_bpm).expect("tempo"),
+            4,
+            group,
         )
     }
 

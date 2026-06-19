@@ -1,0 +1,12 @@
+timing(0,120.000,4);
+(900,1);
+hold(1200,3200,2);
+timinggroup(noinput,noclip){
+timing(0,180.000,4);
+arc(1600,3600,0.20,0.80,sisi,0.45,1.00,0,none,false)[arctap(2000),arctap(2800)];
+(2200,4);
+hold(4200,5200,3);
+};
+arc(4700,6500,0.80,0.25,soso,1.00,0.55,1,none,true)[arctap(6200)];
+hold(5600,6800,4);
+(6200,3);

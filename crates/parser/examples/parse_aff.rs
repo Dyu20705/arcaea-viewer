@@ -33,6 +33,7 @@ fn main() {
             let mut tap_count = 0_usize;
             let mut hold_count = 0_usize;
             let mut arc_count = 0_usize;
+            let mut arc_tap_count = 0_usize;
 
             for (index, event) in chart.events().iter().enumerate() {
                 match event {
@@ -83,6 +84,16 @@ fn main() {
                             arc.end_y().as_f32()
                         );
                     }
+                    ChartEvent::ArcTap(arc_tap) => {
+                        arc_tap_count += 1;
+                        println!(
+                            "[{index}] ArcTap id={} time={}ms parent_arc={} group={}",
+                            arc_tap.id().as_u32(),
+                            arc_tap.time().as_millis(),
+                            arc_tap.parent_arc_id().as_u32(),
+                            arc_tap.timing_group().as_u32()
+                        );
+                    }
                 }
             }
 
@@ -93,6 +104,7 @@ fn main() {
             println!("Tap notes:     {tap_count}");
             println!("Hold notes:    {hold_count}");
             println!("Arc notes:     {arc_count}");
+            println!("ArcTap notes:  {arc_tap_count}");
             println!("Diagnostics:   0");
         }
         Err(diagnostics) => {

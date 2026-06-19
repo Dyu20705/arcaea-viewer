@@ -29,9 +29,12 @@ use std::{
 };
 
 use arcaea_viewer_core::{
-    ArcColor, ArcCurve, ArcNote, Chart, ChartEvent, ChartTime, HoldNote, Lane, NoteId, TapNote,
+    ArcColor, ArcCurve, ArcNote, ArcTapNote, Chart, ChartEvent, ChartTime, HoldNote, Lane, NoteId,
+    TapNote, TimingGroupId, arc_position_at,
 };
-use arcaea_viewer_timing::{NoteState, TimingMap, snapshot_at};
+use arcaea_viewer_timing::{
+    NoteState, SnapshotNote, TimingContext, TimingMap, snapshot_with_context,
+};
 
 const LANE_COUNT: u8 = 4;
 const DEFAULT_PAST_WINDOW_MS: i64 = 500;
@@ -242,6 +245,8 @@ pub enum RenderLayer {
     Holds = 30,
     /// Arc paths.
     Arcs = 40,
+    /// Arc tap markers above their parent arcs.
+    ArcTaps = 45,
     /// Tap markers.
     Taps = 50,
     /// Judgement line.
@@ -308,6 +313,8 @@ pub struct SceneSummary {
     pub visible_holds: usize,
     /// Visible arc primitive count.
     pub visible_arcs: usize,
+    /// Visible arc tap primitive count.
+    pub visible_arc_taps: usize,
     /// Hidden note count.
     pub hidden_notes: usize,
     /// Total primitive count.
@@ -327,6 +334,8 @@ pub enum RenderPrimitive {
     Hold(HoldPrimitive),
     /// Sky arc sampled path.
     Arc(ArcPrimitive),
+    /// Sky arc tap marker.
+    ArcTap(ArcTapPrimitive),
     /// Timing marker.
     TimingMarker(TimingMarkerPrimitive),
     /// Debug or summary label.
@@ -343,6 +352,7 @@ impl RenderPrimitive {
             Self::Tap(value) => value.layer,
             Self::Hold(value) => value.layer,
             Self::Arc(value) => value.layer,
+            Self::ArcTap(value) => value.layer,
             Self::TimingMarker(value) => value.layer,
             Self::Label(value) => value.layer,
         }
@@ -355,6 +365,7 @@ impl RenderPrimitive {
             Self::Tap(value) => value.stable_order,
             Self::Hold(value) => value.stable_order,
             Self::Arc(value) => value.stable_order,
+            Self::ArcTap(value) => value.stable_order,
             Self::TimingMarker(value) => value.stable_order,
             Self::Label(value) => value.stable_order,
         }
@@ -402,6 +413,8 @@ pub struct JudgementLinePrimitive {
 pub struct TapPrimitive {
     /// Chart-local note ID.
     pub note_id: NoteId,
+    /// Timing group that owns this note.
+    pub timing_group: TimingGroupId,
     /// One-based lane.
     pub lane: Lane,
     /// Center position.
@@ -422,6 +435,8 @@ pub struct TapPrimitive {
 pub struct HoldPrimitive {
     /// Chart-local note ID.
     pub note_id: NoteId,
+    /// Timing group that owns this note.
+    pub timing_group: TimingGroupId,
     /// One-based lane.
     pub lane: Lane,
     /// Left boundary in normalized playfield coordinates.
@@ -463,6 +478,8 @@ pub struct ArcSamplePoint {
 pub struct ArcPrimitive {
     /// Chart-local note ID.
     pub note_id: NoteId,
+    /// Timing group that owns this note.
+    pub timing_group: TimingGroupId,
     /// Deterministically sampled points.
     pub points: Vec<ArcSamplePoint>,
     /// Core curve semantic.
@@ -486,11 +503,39 @@ pub struct ArcPrimitive {
     stable_order: usize,
 }
 
+/// Sky arc tap primitive.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArcTapPrimitive {
+    /// Chart-local note ID.
+    pub note_id: NoteId,
+    /// Parent arc note ID.
+    pub parent_arc_id: NoteId,
+    /// Timing group that owns this note.
+    pub timing_group: TimingGroupId,
+    /// Center position projected onto the parent arc path.
+    pub center: NormalizedPoint,
+    /// Retained normalized sky height from `ArcY`.
+    pub sky_y: f32,
+    /// Normalized progress along parent arc.
+    pub arc_progress: f32,
+    /// Current playback state.
+    pub state: RenderNoteState,
+    /// Stable layer.
+    pub layer: RenderLayer,
+    /// Primitive visibility.
+    pub visible: bool,
+    /// Optional label.
+    pub debug_label: Option<String>,
+    stable_order: usize,
+}
+
 /// Timing marker primitive.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimingMarkerPrimitive {
     /// Timing event time.
     pub time: ChartTime,
+    /// Timing group that owns this timing event.
+    pub timing_group: TimingGroupId,
     /// Position on the playfield center line.
     pub position: NormalizedPoint,
     /// Stable layer.
@@ -584,6 +629,18 @@ pub fn build_scene(
     fixture_name: impl Into<String>,
     config: ProjectionConfig,
 ) -> Result<RenderScene, RenderError> {
+    let timing_context = TimingContext::from_root_map(timing_map.clone());
+    build_scene_with_timing_context(chart, &timing_context, playback_time, fixture_name, config)
+}
+
+/// Builds a renderer-facing scene using root and timing-group local maps.
+pub fn build_scene_with_timing_context(
+    chart: &Chart,
+    timing_context: &TimingContext,
+    playback_time: ChartTime,
+    fixture_name: impl Into<String>,
+    config: ProjectionConfig,
+) -> Result<RenderScene, RenderError> {
     ProjectionConfig::new(
         config.past_window_ms,
         config.future_window_ms,
@@ -592,7 +649,7 @@ pub fn build_scene(
         config.arc_sample_steps,
     )?;
 
-    let snapshot = snapshot_at(chart, timing_map, playback_time);
+    let snapshot = snapshot_with_context(chart, timing_context, playback_time);
     let mut primitives = Vec::new();
     let mut hidden_notes = 0_usize;
 
@@ -612,16 +669,22 @@ pub fn build_scene(
         }));
     }
 
-    for (index, (time, tempo)) in timing_map.timing_events().into_iter().enumerate() {
+    for (index, (timing_group, time, tempo)) in timing_context
+        .timing_events_by_group()
+        .into_iter()
+        .enumerate()
+    {
         let projected = project_time(playback_time, time, config)?;
         if projected.visibility == TimeVisibility::Visible {
             primitives.push(RenderPrimitive::TimingMarker(TimingMarkerPrimitive {
                 time,
+                timing_group,
                 position: NormalizedPoint::new(0.5, projected.depth)?,
                 layer: RenderLayer::TimingMarkers,
                 visible: true,
                 debug_label: Some(format!(
-                    "Timing {}ms {:.3} BPM",
+                    "Timing Group={} {}ms {:.3} BPM",
+                    timing_group.as_u32(),
                     time.as_millis(),
                     f64::from(tempo.as_milli_bpm()) / 1000.0
                 )),
@@ -631,11 +694,11 @@ pub fn build_scene(
     }
 
     for (source_index, event) in chart.events().iter().enumerate() {
-        let state = snapshot
+        let snapshot_note = snapshot
             .notes
             .iter()
-            .find(|note| note.source_index == source_index)
-            .map(|note| RenderNoteState::from(note.state));
+            .find(|note| note.source_index == source_index);
+        let state = snapshot_note.map(|note| RenderNoteState::from(note.state));
 
         match event {
             ChartEvent::Tap(tap) => {
@@ -658,6 +721,21 @@ pub fn build_scene(
                 if let Some(state) = state {
                     match build_arc(*arc, playback_time, state, config, source_index)? {
                         Some(primitive) => primitives.push(RenderPrimitive::Arc(primitive)),
+                        None => hidden_notes += 1,
+                    }
+                }
+            }
+            ChartEvent::ArcTap(arc_tap) => {
+                if let (Some(state), Some(snapshot_note)) = (state, snapshot_note) {
+                    match build_arc_tap(
+                        *arc_tap,
+                        playback_time,
+                        state,
+                        snapshot_note,
+                        config,
+                        source_index,
+                    )? {
+                        Some(primitive) => primitives.push(RenderPrimitive::ArcTap(primitive)),
                         None => hidden_notes += 1,
                     }
                 }
@@ -712,7 +790,7 @@ pub fn render_scene_to_svg(scene: &RenderScene) -> Result<String, RenderError> {
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"Arcaea Viewer static chart preview\">\n"
     ));
     svg.push_str("<title>Arcaea-Viewer Static Chart Preview</title>\n");
-    svg.push_str("<style>text{font-family:Consolas,monospace;font-size:14px;fill:#14213d}.small{font-size:12px}.playfield{fill:#f7f8fc;stroke:#172033;stroke-width:2}.lane{fill:#ffffff;stroke:#9aa4b2;stroke-width:1.5}.lane.alt{fill:#edf2f7}.timing{stroke:#6b7280;stroke-width:2;stroke-dasharray:6 5}.judgement{stroke:#e11d48;stroke-width:5;stroke-linecap:round}.horizon{stroke:#172033;stroke-width:3}.tap{fill:#20a4f3;stroke:#0f172a;stroke-width:2}.hold{fill:#f7b801;fill-opacity:.65;stroke:#7c4a03;stroke-width:2}.arc-blue{fill:none;stroke:#2563eb;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-red{fill:none;stroke:#dc2626;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-green{fill:none;stroke:#16a34a;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.passed{opacity:.55}.active{filter:url(#activeGlow)}.label{fill:#111827;font-size:12px}.summary{fill:#111827;font-size:13px}</style>\n");
+    svg.push_str("<style>text{font-family:Consolas,monospace;font-size:14px;fill:#14213d}.small{font-size:12px}.playfield{fill:#f7f8fc;stroke:#172033;stroke-width:2}.lane{fill:#ffffff;stroke:#9aa4b2;stroke-width:1.5}.lane.alt{fill:#edf2f7}.timing{stroke:#6b7280;stroke-width:2;stroke-dasharray:6 5}.judgement{stroke:#e11d48;stroke-width:5;stroke-linecap:round}.horizon{stroke:#172033;stroke-width:3}.tap{fill:#20a4f3;stroke:#0f172a;stroke-width:2}.hold{fill:#f7b801;fill-opacity:.65;stroke:#7c4a03;stroke-width:2}.arctap{fill:#f9fafb;stroke:#7c3aed;stroke-width:4}.arc-blue{fill:none;stroke:#2563eb;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-red{fill:none;stroke:#dc2626;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.arc-green{fill:none;stroke:#16a34a;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.passed{opacity:.55}.active{filter:url(#activeGlow)}.label{fill:#111827;font-size:12px}.summary{fill:#111827;font-size:13px}</style>\n");
     svg.push_str("<defs><filter id=\"activeGlow\"><feDropShadow dx=\"0\" dy=\"0\" stdDeviation=\"3\" flood-color=\"#111827\" flood-opacity=\"0.35\"/></filter></defs>\n");
     svg.push_str("<rect width=\"100%\" height=\"100%\" fill=\"#f4f0e8\"/>\n");
     svg.push_str(&format!(
@@ -743,6 +821,7 @@ pub fn render_scene_to_svg(scene: &RenderScene) -> Result<String, RenderError> {
             }
             RenderPrimitive::Hold(hold) => render_hold(&mut svg, &converter, hold),
             RenderPrimitive::Arc(arc) => render_arc(&mut svg, &converter, arc),
+            RenderPrimitive::ArcTap(arc_tap) => render_arc_tap(&mut svg, &converter, arc_tap),
             RenderPrimitive::Tap(tap) => render_tap(&mut svg, &converter, tap),
             RenderPrimitive::JudgementLine(line) => {
                 render_judgement_line(&mut svg, &converter, line)
@@ -752,12 +831,13 @@ pub fn render_scene_to_svg(scene: &RenderScene) -> Result<String, RenderError> {
     }
     svg.push_str("</g>\n");
     svg.push_str(&format!(
-        "<g id=\"debug-summary\"><text class=\"summary\" x=\"32\" y=\"{}\">Lanes={} Visible taps={} Visible holds={} Visible arcs={} Hidden notes={} Primitive count={}</text></g>\n",
+        "<g id=\"debug-summary\"><text class=\"summary\" x=\"32\" y=\"{}\">Lanes={} Visible taps={} Visible holds={} Visible arcs={} Visible arc taps={} Hidden notes={} Primitive count={}</text></g>\n",
         height.saturating_sub(30),
         scene.metadata.summary.lanes,
         scene.metadata.summary.visible_taps,
         scene.metadata.summary.visible_holds,
         scene.metadata.summary.visible_arcs,
+        scene.metadata.summary.visible_arc_taps,
         scene.metadata.summary.hidden_notes,
         scene.metadata.summary.primitive_count
     ));
@@ -796,6 +876,7 @@ fn build_tap(
     }
     Ok(Some(TapPrimitive {
         note_id: tap.id(),
+        timing_group: tap.timing_group(),
         lane: tap.lane(),
         center: NormalizedPoint::new(lane_center_x(tap.lane()), projected.depth)?,
         state,
@@ -821,6 +902,7 @@ fn build_hold(
     let (x_start, x_end) = lane_bounds_x(hold.lane());
     Ok(Some(HoldPrimitive {
         note_id: hold.id(),
+        timing_group: hold.timing_group(),
         lane: hold.lane(),
         x_start,
         x_end,
@@ -859,9 +941,11 @@ fn build_arc(
         if projected.visibility != TimeVisibility::Visible {
             continue;
         }
-        let (x_progress, y_progress) = arc_axis_progress(arc.curve(), progress);
-        let x = lerp(arc.start_x().as_f32(), arc.end_x().as_f32(), x_progress);
-        let sky_y = lerp(arc.start_y().as_f32(), arc.end_y().as_f32(), y_progress);
+        let Some(position) = arc_position_at(arc, sample_time) else {
+            continue;
+        };
+        let x = position.x;
+        let sky_y = position.y;
         ensure_finite(x, "arc x")?;
         ensure_finite(sky_y, "arc sky y")?;
         points.push(ArcSamplePoint {
@@ -877,6 +961,7 @@ fn build_arc(
 
     Ok(Some(ArcPrimitive {
         note_id: arc.id(),
+        timing_group: arc.timing_group(),
         points,
         curve: arc.curve(),
         color: arc.color(),
@@ -887,6 +972,44 @@ fn build_arc(
         layer: RenderLayer::Arcs,
         visible: true,
         debug_label: Some(format!("Arc NoteId={} {:?}", arc.id().as_u32(), state)),
+        stable_order,
+    }))
+}
+
+fn build_arc_tap(
+    arc_tap: ArcTapNote,
+    playback_time: ChartTime,
+    state: RenderNoteState,
+    snapshot_note: &SnapshotNote,
+    config: ProjectionConfig,
+    stable_order: usize,
+) -> Result<Option<ArcTapPrimitive>, RenderError> {
+    let projected = project_time(playback_time, arc_tap.time(), config)?;
+    if projected.visibility != TimeVisibility::Visible {
+        return Ok(None);
+    }
+    let Some(position) = snapshot_note.arc_position else {
+        return Ok(None);
+    };
+    ensure_finite(position.x, "arctap x")?;
+    ensure_finite(position.sky_y, "arctap sky y")?;
+    Ok(Some(ArcTapPrimitive {
+        note_id: arc_tap.id(),
+        parent_arc_id: arc_tap.parent_arc_id(),
+        timing_group: arc_tap.timing_group(),
+        center: NormalizedPoint::new(position.x, projected.depth)?,
+        sky_y: position.sky_y,
+        arc_progress: position.progress,
+        state,
+        layer: RenderLayer::ArcTaps,
+        visible: true,
+        debug_label: Some(format!(
+            "ArcTap NoteId={} ParentArcId={} Group={} {:?}",
+            arc_tap.id().as_u32(),
+            arc_tap.parent_arc_id().as_u32(),
+            arc_tap.timing_group().as_u32(),
+            state
+        )),
         stable_order,
     }))
 }
@@ -946,42 +1069,11 @@ fn summarize(primitives: &[RenderPrimitive], hidden_notes: usize) -> SceneSummar
             RenderPrimitive::Tap(tap) if tap.visible => summary.visible_taps += 1,
             RenderPrimitive::Hold(hold) if hold.visible => summary.visible_holds += 1,
             RenderPrimitive::Arc(arc) if arc.visible => summary.visible_arcs += 1,
+            RenderPrimitive::ArcTap(arc_tap) if arc_tap.visible => summary.visible_arc_taps += 1,
             _ => {}
         }
     }
     summary
-}
-
-fn arc_axis_progress(curve: ArcCurve, progress: f32) -> (f32, f32) {
-    let t = progress.clamp(0.0, 1.0);
-    match curve {
-        ArcCurve::Straight => (linear(t), linear(t)),
-        ArcCurve::Bezier => (smoothstep(t), smoothstep(t)),
-        ArcCurve::SineIn => (sine_in_axis(t), linear(t)),
-        ArcCurve::SineOut => (sine_out_axis(t), linear(t)),
-        ArcCurve::SineInOut => (sine_in_axis(t), sine_in_axis(t)),
-        ArcCurve::SineOutIn => (sine_out_axis(t), sine_out_axis(t)),
-    }
-}
-
-fn linear(progress: f32) -> f32 {
-    progress
-}
-
-fn smoothstep(progress: f32) -> f32 {
-    progress * progress * (3.0 - 2.0 * progress)
-}
-
-fn sine_in_axis(progress: f32) -> f32 {
-    (progress * std::f32::consts::FRAC_PI_2).sin()
-}
-
-fn sine_out_axis(progress: f32) -> f32 {
-    1.0 - (progress * std::f32::consts::FRAC_PI_2).cos()
-}
-
-fn lerp(start: f32, end: f32, progress: f32) -> f32 {
-    start + ((end - start) * progress)
 }
 
 fn ensure_finite(value: f32, context: &'static str) -> Result<(), RenderError> {
@@ -1073,9 +1165,11 @@ fn render_timing_marker(
 ) {
     let (left, right) = converter.segment(0.0, marker.position.y, 1.0, marker.position.y);
     svg.push_str(&format!(
-        "<line id=\"timing-marker-{}\" class=\"timing\" data-time=\"{}\" data-layer=\"{}\" x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\"><title>{}</title></line>\n",
+        "<line id=\"timing-marker-{}-{}\" class=\"timing\" data-time=\"{}\" data-timing-group-id=\"{}\" data-layer=\"{}\" x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\"><title>{}</title></line>\n",
+        marker.timing_group.as_u32(),
         marker.time.as_millis(),
         marker.time.as_millis(),
+        marker.timing_group.as_u32(),
         marker.layer as u8,
         left.x,
         left.y,
@@ -1111,10 +1205,11 @@ fn render_hold(svg: &mut String, converter: &SvgConverter, hold: &HoldPrimitive)
         }),
     ];
     svg.push_str(&format!(
-        "<polygon id=\"note-{}-hold\" class=\"hold {}\" data-note-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" data-clipped-judgement=\"{}\" data-clipped-horizon=\"{}\" points=\"{}\"><title>{}</title></polygon>\n",
+        "<polygon id=\"note-{}-hold\" class=\"hold {}\" data-note-id=\"{}\" data-event-kind=\"hold\" data-timing-group-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" data-clipped-judgement=\"{}\" data-clipped-horizon=\"{}\" points=\"{}\"><title>{}</title></polygon>\n",
         hold.note_id.as_u32(),
         state_class(hold.state),
         hold.note_id.as_u32(),
+        hold.timing_group.as_u32(),
         hold.layer as u8,
         hold.state,
         hold.clipped_at_judgement,
@@ -1132,11 +1227,12 @@ fn render_arc(svg: &mut String, converter: &SvgConverter, arc: &ArcPrimitive) {
         .map(|point| converter.point(point.position))
         .collect();
     svg.push_str(&format!(
-        "<polyline id=\"note-{}-arc\" class=\"{} {}\" data-note-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" data-curve=\"{:?}\" data-color=\"{:?}\" data-trace=\"{}\" data-samples=\"{}\" points=\"{}\"><title>{}</title></polyline>\n",
+        "<polyline id=\"note-{}-arc\" class=\"{} {}\" data-note-id=\"{}\" data-event-kind=\"arc\" data-timing-group-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" data-curve=\"{:?}\" data-color=\"{:?}\" data-trace=\"{}\" data-samples=\"{}\" points=\"{}\"><title>{}</title></polyline>\n",
         arc.note_id.as_u32(),
         arc_color_class(arc.color),
         state_class(arc.state),
         arc.note_id.as_u32(),
+        arc.timing_group.as_u32(),
         arc.layer as u8,
         arc.state,
         arc.curve,
@@ -1157,13 +1253,39 @@ fn render_arc(svg: &mut String, converter: &SvgConverter, arc: &ArcPrimitive) {
     }
 }
 
+fn render_arc_tap(svg: &mut String, converter: &SvgConverter, arc_tap: &ArcTapPrimitive) {
+    let center = converter.point(arc_tap.center);
+    svg.push_str(&format!(
+        "<circle id=\"note-{}-arctap\" class=\"arctap {}\" data-note-id=\"{}\" data-event-kind=\"arctap\" data-parent-arc-id=\"{}\" data-timing-group-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" data-arc-progress=\"{:.4}\" cx=\"{:.2}\" cy=\"{:.2}\" r=\"10\"><title>{}</title></circle>\n",
+        arc_tap.note_id.as_u32(),
+        state_class(arc_tap.state),
+        arc_tap.note_id.as_u32(),
+        arc_tap.parent_arc_id.as_u32(),
+        arc_tap.timing_group.as_u32(),
+        arc_tap.layer as u8,
+        arc_tap.state,
+        arc_tap.arc_progress,
+        center.x,
+        center.y,
+        escape_xml(arc_tap.debug_label.as_deref().unwrap_or(""))
+    ));
+    render_debug_label(
+        svg,
+        converter,
+        arc_tap.debug_label.as_deref(),
+        arc_tap.center.x,
+        arc_tap.center.y,
+    );
+}
+
 fn render_tap(svg: &mut String, converter: &SvgConverter, tap: &TapPrimitive) {
     let center = converter.point(tap.center);
     svg.push_str(&format!(
-        "<rect id=\"note-{}-tap\" class=\"tap {}\" data-note-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" x=\"{:.2}\" y=\"{:.2}\" width=\"42\" height=\"18\" rx=\"3\"><title>{}</title></rect>\n",
+        "<rect id=\"note-{}-tap\" class=\"tap {}\" data-note-id=\"{}\" data-event-kind=\"tap\" data-timing-group-id=\"{}\" data-layer=\"{}\" data-state=\"{:?}\" x=\"{:.2}\" y=\"{:.2}\" width=\"42\" height=\"18\" rx=\"3\"><title>{}</title></rect>\n",
         tap.note_id.as_u32(),
         state_class(tap.state),
         tap.note_id.as_u32(),
+        tap.timing_group.as_u32(),
         tap.layer as u8,
         tap.state,
         center.x - 21.0,
@@ -1260,7 +1382,10 @@ fn escape_xml(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arcaea_viewer_core::{ArcPath, ArcX, ArcY, HoldNote, TapNote, Tempo, TimingEvent};
+    use arcaea_viewer_core::{
+        ArcPath, ArcTapNote, ArcX, ArcY, HoldNote, TapNote, Tempo, TimingEvent, TimingGroup,
+        TimingGroupProperties,
+    };
 
     #[test]
     fn projection_maps_playback_to_judgement_line() {
@@ -1604,7 +1729,63 @@ mod tests {
     fn primitive_layers_are_stable() {
         assert!((RenderLayer::Lanes as u8) < (RenderLayer::Holds as u8));
         assert!((RenderLayer::Holds as u8) < (RenderLayer::Arcs as u8));
+        assert!((RenderLayer::Arcs as u8) < (RenderLayer::ArcTaps as u8));
+        assert!((RenderLayer::ArcTaps as u8) < (RenderLayer::Taps as u8));
         assert!((RenderLayer::Taps as u8) < (RenderLayer::JudgementLine as u8));
+    }
+
+    #[test]
+    fn grouped_arctap_scene_preserves_parent_and_group_metadata() {
+        let group = TimingGroupId::new(1);
+        let arc = ArcNote::new_in_group(
+            NoteId::new(0),
+            time(1_600),
+            time(3_600),
+            ArcPath::new(
+                ArcX::new(0.20).expect("x"),
+                ArcX::new(0.80).expect("x"),
+                ArcY::new(0.45).expect("y"),
+                ArcY::new(1.00).expect("y"),
+            ),
+            ArcCurve::SineInOut,
+            ArcColor::Blue,
+            false,
+            group,
+        )
+        .expect("arc");
+        let chart = Chart::with_timing_groups(
+            vec![
+                ChartEvent::Timing(timing(0)),
+                ChartEvent::Timing(TimingEvent::new_in_group(
+                    time(0),
+                    Tempo::from_milli_bpm(180_000).expect("tempo"),
+                    4,
+                    group,
+                )),
+                ChartEvent::Arc(arc),
+                ChartEvent::ArcTap(ArcTapNote::new(
+                    NoteId::new(1),
+                    time(2_000),
+                    arc.id(),
+                    group,
+                )),
+            ],
+            vec![TimingGroup::new(group, TimingGroupProperties::default())],
+        );
+        let context = TimingContext::from_chart(&chart).expect("timing context");
+
+        let scene =
+            build_scene_with_timing_context(&chart, &context, time(1_500), "grouped.aff", config())
+                .expect("scene");
+        let arc_tap = only_arc_tap(&scene);
+        let svg = render_scene_to_svg(&scene).expect("svg");
+
+        assert_eq!(scene.metadata.summary.visible_arc_taps, 1);
+        assert_eq!(arc_tap.parent_arc_id, arc.id());
+        assert_eq!(arc_tap.timing_group, group);
+        assert!(svg.contains("data-event-kind=\"arctap\""));
+        assert!(svg.contains("data-parent-arc-id=\"0\""));
+        assert!(svg.contains("data-timing-group-id=\"1\""));
     }
 
     #[test]
@@ -1787,5 +1968,16 @@ mod tests {
                 _ => None,
             })
             .expect("arc")
+    }
+
+    fn only_arc_tap(scene: &RenderScene) -> &ArcTapPrimitive {
+        scene
+            .primitives
+            .iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::ArcTap(arc_tap) => Some(arc_tap),
+                _ => None,
+            })
+            .expect("arctap")
     }
 }

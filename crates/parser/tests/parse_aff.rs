@@ -1,6 +1,6 @@
 use std::panic;
 
-use arcaea_viewer_core::{ArcColor, ArcCurve, ChartEvent};
+use arcaea_viewer_core::{ArcColor, ArcCurve, ChartEvent, TimingGroupId};
 use arcaea_viewer_parser::{DiagnosticCode, parse_chart};
 
 fn fixture(name: &str) -> String {
@@ -69,6 +69,7 @@ fn note_ids_are_deterministic_and_skip_timing_events() {
             ChartEvent::Tap(tap) => Some(tap.id().as_u32()),
             ChartEvent::Hold(hold) => Some(hold.id().as_u32()),
             ChartEvent::Arc(arc) => Some(arc.id().as_u32()),
+            ChartEvent::ArcTap(arc_tap) => Some(arc_tap.id().as_u32()),
             ChartEvent::Timing(_) => None,
         })
         .collect();
@@ -124,11 +125,94 @@ fn unsupported_event_is_not_ignored() {
 }
 
 #[test]
-fn arc_tap_extension_is_reported_as_unsupported() {
-    let diagnostics = parse_chart("arc(0,1000,0.00,1.00,s,0.00,1.00,0,none,false)[arctap(500)];")
-        .expect_err("arc taps are outside the current domain model");
+fn parses_timing_group_with_local_timing_and_note_group_ids() {
+    let chart = parse_chart(&fixture("timing_group.aff")).expect("timinggroup fixture");
+
+    assert_eq!(chart.timing_groups().len(), 2);
+    assert_eq!(chart.timing_groups()[1].id(), TimingGroupId::new(1));
+    assert!(chart.timing_groups()[1].properties().no_input());
+    assert!(chart.timing_groups()[1].properties().no_clip());
+    assert!(
+        matches!(chart.events()[2], ChartEvent::Tap(tap) if tap.timing_group() == TimingGroupId::new(1))
+    );
+}
+
+#[test]
+fn parses_arc_taps_with_parent_relationship_and_boundary_times() {
+    let chart = parse_chart(&fixture("arc_taps.aff")).expect("arc taps fixture");
+    let arc_id = match chart.events()[1] {
+        ChartEvent::Arc(arc) => arc.id(),
+        _ => panic!("expected parent arc"),
+    };
+    let arc_taps: Vec<_> = chart
+        .events()
+        .iter()
+        .filter_map(|event| match event {
+            ChartEvent::ArcTap(arc_tap) => Some(*arc_tap),
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(arc_taps.len(), 3);
+    assert_eq!(arc_taps[0].time().as_millis(), 1000);
+    assert_eq!(arc_taps[2].time().as_millis(), 3000);
+    assert!(
+        arc_taps
+            .iter()
+            .all(|arc_tap| arc_tap.parent_arc_id() == arc_id)
+    );
+}
+
+#[test]
+fn mixed_root_and_grouped_events_parse_together() {
+    let chart = parse_chart(&fixture("checkpoint9_mixed.aff")).expect("mixed checkpoint9");
+
+    assert!(chart.events().iter().any(|event| {
+        matches!(event, ChartEvent::Tap(tap) if tap.timing_group() == TimingGroupId::ROOT)
+    }));
+    assert!(chart.events().iter().any(|event| {
+        matches!(event, ChartEvent::ArcTap(arc_tap) if arc_tap.timing_group() == TimingGroupId::new(1))
+    }));
+}
+
+#[test]
+fn malformed_timing_group_is_syntax_diagnostic() {
+    let diagnostics =
+        parse_chart(&fixture("malformed_timing_group.aff")).expect_err("malformed group");
+
+    assert_eq!(diagnostics[0].code, DiagnosticCode::SyntaxError);
+}
+
+#[test]
+fn unknown_timing_group_property_is_not_ignored() {
+    let diagnostics = parse_chart(&fixture("unknown_timing_group_property.aff"))
+        .expect_err("unknown group property");
 
     assert_eq!(diagnostics[0].code, DiagnosticCode::UnsupportedEvent);
+}
+
+#[test]
+fn arc_tap_without_parent_is_not_accepted() {
+    let diagnostics =
+        parse_chart(&fixture("arctap_without_parent.aff")).expect_err("arctap without parent");
+
+    assert_eq!(diagnostics[0].code, DiagnosticCode::UnsupportedEvent);
+}
+
+#[test]
+fn arc_tap_outside_parent_interval_is_domain_diagnostic() {
+    let diagnostics =
+        parse_chart(&fixture("arctap_outside_parent.aff")).expect_err("arctap outside interval");
+
+    assert_eq!(diagnostics[0].code, DiagnosticCode::DomainValidationError);
+}
+
+#[test]
+fn duplicate_arc_tap_timestamp_is_domain_diagnostic() {
+    let diagnostics =
+        parse_chart(&fixture("duplicate_boundary_arctaps.aff")).expect_err("duplicate arctap");
+
+    assert_eq!(diagnostics[0].code, DiagnosticCode::DomainValidationError);
 }
 
 #[test]

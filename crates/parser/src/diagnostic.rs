@@ -118,7 +118,10 @@ impl Diagnostic {
             message: message.into(),
             span,
             note: Some(note),
-            help: Some("this checkpoint supports timing, tap, hold, and basic arc events".into()),
+            help: Some(
+                "this checkpoint supports timing, tap, hold, arc, timinggroup, and arctap events"
+                    .into(),
+            ),
             category: DiagnosticCategory::Unsupported,
         }
     }

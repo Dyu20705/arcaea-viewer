@@ -16,7 +16,9 @@ pub use chart::Chart;
 pub use coordinate::{ArcX, ArcY};
 pub use error::{CoordinateError, IntervalError, LaneError, TempoError};
 pub use event::{
-    ArcColor, ArcCurve, ArcNote, ArcPath, ChartEvent, HoldNote, NoteId, TapNote, TimingEvent,
+    ArcColor, ArcCurve, ArcNote, ArcPath, ArcPosition, ArcTapNote, ChartEvent, HoldNote, NoteId,
+    TapNote, TimingEvent, TimingGroup, TimingGroupId, TimingGroupProperties, arc_axis_progress,
+    arc_position_at,
 };
 pub use lane::Lane;
 pub use tempo::Tempo;
