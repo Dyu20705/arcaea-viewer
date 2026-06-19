@@ -5,7 +5,7 @@
 <defs><filter id="activeGlow"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#111827" flood-opacity="0.35"/></filter></defs>
 <rect width="100%" height="100%" fill="#f4f0e8"/>
 <text id="preview-title" x="32" y="34" font-size="22" font-weight="700">Chart Preview</text>
-<text id="fixture-name" x="32" y="58">Fixture: fixtures\mixed_events.aff</text>
+<text id="fixture-name" x="32" y="58">Fixture: fixtures/mixed_events.aff</text>
 <text id="playback-time" x="32" y="80">Playback: 6000ms</text>
 <text id="visible-window" x="32" y="102">Visible window: 5500..8000ms</text>
 <g id="playfield" data-viewport="1280x720">
@@ -15,8 +15,8 @@
 <polygon id="lane-2" class="lane alt" data-layer="10" points="380.00,600.00 640.00,600.00 640.00,120.00 489.20,120.00"><title>Lane 2</title></polygon>
 <polygon id="lane-3" class="lane" data-layer="10" points="640.00,600.00 900.00,600.00 790.80,120.00 640.00,120.00"><title>Lane 3</title></polygon>
 <polygon id="lane-4" class="lane alt" data-layer="10" points="900.00,600.00 1160.00,600.00 941.60,120.00 790.80,120.00"><title>Lane 4</title></polygon>
-<line id="judgement-line" class="judgement" data-layer="60" x1="120.00" y1="600.00" x2="1160.00" y2="600.00"><title>Judgement line</title></line>
+<line id="judgement-line" class="judgement" data-layer="60" data-playback-cursor="true" x1="120.00" y1="600.00" x2="1160.00" y2="600.00"><title>Judgement line</title></line>
 <text class="label" data-layer="70" x="337.88" y="148.80">Playback 6000ms</text>
 </g>
-<g id="debug-summary"><text class="summary" x="32" y="690">Lanes=4 Visible taps=0 Visible holds=0 Visible arcs=0 Hidden notes=3 Primitive count=6</text></g>
+<g id="debug-summary"><text class="summary" x="32" y="690">Lanes=4 Visible taps=0 Visible holds=0 Visible arcs=0 Hidden notes=4 Primitive count=6</text></g>
 </svg>

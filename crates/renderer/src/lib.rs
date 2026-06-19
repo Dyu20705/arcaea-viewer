@@ -801,7 +801,7 @@ fn build_tap(
         state,
         layer: RenderLayer::Taps,
         visible: true,
-        debug_label: Some(format!("Tap #{} {:?}", tap.id().as_u32(), state)),
+        debug_label: Some(format!("Tap NoteId={} {:?}", tap.id().as_u32(), state)),
         stable_order,
     }))
 }
@@ -831,7 +831,7 @@ fn build_hold(
         clipped_at_horizon: interval.clipped_at_horizon,
         layer: RenderLayer::Holds,
         visible: true,
-        debug_label: Some(format!("Hold #{} {:?}", hold.id().as_u32(), state)),
+        debug_label: Some(format!("Hold NoteId={} {:?}", hold.id().as_u32(), state)),
         stable_order,
     }))
 }
@@ -859,9 +859,9 @@ fn build_arc(
         if projected.visibility != TimeVisibility::Visible {
             continue;
         }
-        let eased = ease_curve(arc.curve(), progress);
-        let x = lerp(arc.start_x().as_f32(), arc.end_x().as_f32(), eased);
-        let sky_y = lerp(arc.start_y().as_f32(), arc.end_y().as_f32(), eased);
+        let (x_progress, y_progress) = arc_axis_progress(arc.curve(), progress);
+        let x = lerp(arc.start_x().as_f32(), arc.end_x().as_f32(), x_progress);
+        let sky_y = lerp(arc.start_y().as_f32(), arc.end_y().as_f32(), y_progress);
         ensure_finite(x, "arc x")?;
         ensure_finite(sky_y, "arc sky y")?;
         points.push(ArcSamplePoint {
@@ -886,7 +886,7 @@ fn build_arc(
         clipped_at_horizon: interval.clipped_at_horizon,
         layer: RenderLayer::Arcs,
         visible: true,
-        debug_label: Some(format!("Arc #{} {:?}", arc.id().as_u32(), state)),
+        debug_label: Some(format!("Arc NoteId={} {:?}", arc.id().as_u32(), state)),
         stable_order,
     }))
 }
@@ -952,22 +952,32 @@ fn summarize(primitives: &[RenderPrimitive], hidden_notes: usize) -> SceneSummar
     summary
 }
 
-fn ease_curve(curve: ArcCurve, progress: f32) -> f32 {
+fn arc_axis_progress(curve: ArcCurve, progress: f32) -> (f32, f32) {
     let t = progress.clamp(0.0, 1.0);
     match curve {
-        ArcCurve::Straight => t,
-        ArcCurve::Bezier => t * t * (3.0 - 2.0 * t),
-        ArcCurve::SineIn => 1.0 - (t * std::f32::consts::FRAC_PI_2).cos(),
-        ArcCurve::SineOut => (t * std::f32::consts::FRAC_PI_2).sin(),
-        ArcCurve::SineInOut => 0.5 - 0.5 * (std::f32::consts::PI * t).cos(),
-        ArcCurve::SineOutIn => {
-            if t < 0.5 {
-                0.5 * (std::f32::consts::PI * t).sin()
-            } else {
-                0.5 + 0.5 * (1.0 - (std::f32::consts::PI * (t - 0.5)).cos())
-            }
-        }
+        ArcCurve::Straight => (linear(t), linear(t)),
+        ArcCurve::Bezier => (smoothstep(t), smoothstep(t)),
+        ArcCurve::SineIn => (sine_in_axis(t), linear(t)),
+        ArcCurve::SineOut => (sine_out_axis(t), linear(t)),
+        ArcCurve::SineInOut => (sine_in_axis(t), sine_in_axis(t)),
+        ArcCurve::SineOutIn => (sine_out_axis(t), sine_out_axis(t)),
     }
+}
+
+fn linear(progress: f32) -> f32 {
+    progress
+}
+
+fn smoothstep(progress: f32) -> f32 {
+    progress * progress * (3.0 - 2.0 * progress)
+}
+
+fn sine_in_axis(progress: f32) -> f32 {
+    (progress * std::f32::consts::FRAC_PI_2).sin()
+}
+
+fn sine_out_axis(progress: f32) -> f32 {
+    1.0 - (progress * std::f32::consts::FRAC_PI_2).cos()
 }
 
 fn lerp(start: f32, end: f32, progress: f32) -> f32 {
@@ -1176,7 +1186,7 @@ fn render_judgement_line(
 ) {
     let (left, right) = converter.segment(0.0, line.y, 1.0, line.y);
     svg.push_str(&format!(
-        "<line id=\"judgement-line\" class=\"judgement\" data-layer=\"{}\" x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\"><title>{}</title></line>\n",
+        "<line id=\"judgement-line\" class=\"judgement\" data-layer=\"{}\" data-playback-cursor=\"true\" x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\"><title>{}</title></line>\n",
         line.layer as u8,
         left.x,
         left.y,
@@ -1440,6 +1450,39 @@ mod tests {
     }
 
     #[test]
+    fn zero_duration_arc_is_safe_and_finite() {
+        let chart = Chart::new(vec![
+            ChartEvent::Timing(timing(0)),
+            ChartEvent::Arc(
+                ArcNote::new(
+                    NoteId::new(8),
+                    time(1_000),
+                    time(1_000),
+                    ArcPath::new(
+                        ArcX::new(0.25).expect("x"),
+                        ArcX::new(0.75).expect("x"),
+                        ArcY::new(0.50).expect("y"),
+                        ArcY::new(1.00).expect("y"),
+                    ),
+                    ArcCurve::Straight,
+                    ArcColor::Blue,
+                    false,
+                )
+                .expect("arc"),
+            ),
+        ]);
+        let map = TimingMap::from_chart(&chart).expect("timing");
+        let scene = build_scene(&chart, &map, time(1_000), "zero.aff", config()).expect("scene");
+        let arc = only_arc(&scene);
+
+        assert_eq!(arc.note_id.as_u32(), 8);
+        assert_eq!(arc.state, RenderNoteState::Active);
+        assert!(arc.points.iter().all(|point| {
+            point.position.x.is_finite() && point.position.y.is_finite() && point.sky_y.is_finite()
+        }));
+    }
+
+    #[test]
     fn straight_arc_preserves_endpoints() {
         let chart = chart_with_arc_curve(ArcCurve::Straight);
         let map = TimingMap::from_chart(&chart).expect("timing");
@@ -1473,6 +1516,38 @@ mod tests {
                     && point.sky_y.is_finite()
             }));
         }
+    }
+
+    #[test]
+    fn sine_in_arc_eases_horizontal_axis_and_keeps_vertical_axis_linear() {
+        let chart = chart_with_arc_curve(ArcCurve::SineIn);
+        let map = TimingMap::from_chart(&chart).expect("timing");
+        let scene = build_scene(&chart, &map, time(3_200), "arc.aff", config()).expect("scene");
+        let arc = only_arc(&scene);
+        let middle = arc
+            .points
+            .iter()
+            .find(|point| (point.progress - 0.5).abs() < EPSILON)
+            .expect("middle sample");
+
+        assert!((middle.position.x - 0.6035534).abs() < EPSILON);
+        assert!((middle.sky_y - 0.75).abs() < EPSILON);
+    }
+
+    #[test]
+    fn sine_in_out_arc_eases_both_axes() {
+        let chart = chart_with_arc_curve(ArcCurve::SineInOut);
+        let map = TimingMap::from_chart(&chart).expect("timing");
+        let scene = build_scene(&chart, &map, time(3_200), "arc.aff", config()).expect("scene");
+        let arc = only_arc(&scene);
+        let middle = arc
+            .points
+            .iter()
+            .find(|point| (point.progress - 0.5).abs() < EPSILON)
+            .expect("middle sample");
+
+        assert!((middle.position.x - 0.6035534).abs() < EPSILON);
+        assert!((middle.sky_y - 0.8535534).abs() < EPSILON);
     }
 
     #[test]
@@ -1548,7 +1623,37 @@ mod tests {
         assert!(svg.contains("note-1-hold"));
         assert!(svg.contains("note-2-arc"));
         assert!(svg.contains("data-note-id=\"1\""));
+        assert!(svg.contains("data-playback-cursor=\"true\""));
+        assert!(svg.contains("Hold NoteId=1"));
+        assert!(svg.contains("Arc NoteId=2"));
         assert!(svg.len() > 1_000);
+    }
+
+    #[test]
+    fn fixture_style_scene_at_2500_can_show_tap_hold_and_arc_together() {
+        let chart = Chart::new(vec![
+            ChartEvent::Timing(timing(0)),
+            ChartEvent::Tap(tap()),
+            ChartEvent::Hold(hold()),
+            ChartEvent::Arc(arc_note(2, ArcCurve::SineInOut, ArcColor::Blue, false)),
+            ChartEvent::Tap(TapNote::new(
+                NoteId::new(3),
+                time(2_600),
+                Lane::new(4).expect("lane"),
+            )),
+        ]);
+        let map = TimingMap::from_chart(&chart).expect("timing");
+        let scene =
+            build_scene(&chart, &map, time(2_500), "mixed_events.aff", config()).expect("scene");
+        let svg = render_scene_to_svg(&scene).expect("svg");
+
+        assert_eq!(scene.metadata.summary.visible_taps, 1);
+        assert_eq!(scene.metadata.summary.visible_holds, 1);
+        assert_eq!(scene.metadata.summary.visible_arcs, 1);
+        assert!(svg.contains("note-3-tap"));
+        assert!(svg.contains("Tap NoteId=3"));
+        assert!(svg.contains("note-1-hold"));
+        assert!(svg.contains("note-2-arc"));
     }
 
     #[test]

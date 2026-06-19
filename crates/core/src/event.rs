@@ -122,7 +122,7 @@ pub enum ArcCurve {
     SineOut,
     /// Sine-eased interpolation at both ends.
     SineInOut,
-    /// Sine-eased interpolation leaving then entering across a split segment.
+    /// Sine-out interpolation on both axes for the currently supported `soso` token.
     SineOutIn,
 }
 

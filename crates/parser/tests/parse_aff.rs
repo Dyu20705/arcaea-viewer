@@ -56,6 +56,7 @@ fn mixed_events_preserve_source_order() {
     assert!(matches!(chart.events()[1], ChartEvent::Tap(_)));
     assert!(matches!(chart.events()[2], ChartEvent::Hold(_)));
     assert!(matches!(chart.events()[3], ChartEvent::Arc(_)));
+    assert!(matches!(chart.events()[4], ChartEvent::Tap(_)));
 }
 
 #[test]
@@ -72,7 +73,7 @@ fn note_ids_are_deterministic_and_skip_timing_events() {
         })
         .collect();
 
-    assert_eq!(ids, [0, 1, 2]);
+    assert_eq!(ids, [0, 1, 2, 3]);
 }
 
 #[test]
@@ -118,6 +119,14 @@ fn malformed_syntax_includes_correct_span() {
 #[test]
 fn unsupported_event_is_not_ignored() {
     let diagnostics = parse_chart(&fixture("unsupported_event.aff")).expect_err("unsupported");
+
+    assert_eq!(diagnostics[0].code, DiagnosticCode::UnsupportedEvent);
+}
+
+#[test]
+fn arc_tap_extension_is_reported_as_unsupported() {
+    let diagnostics = parse_chart("arc(0,1000,0.00,1.00,s,0.00,1.00,0,none,false)[arctap(500)];")
+        .expect_err("arc taps are outside the current domain model");
 
     assert_eq!(diagnostics[0].code, DiagnosticCode::UnsupportedEvent);
 }
