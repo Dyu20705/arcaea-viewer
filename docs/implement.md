@@ -1,5 +1,23 @@
 # Kế hoạch triển khai dự án Arcaea-Viewer
 
+## Cập nhật trạng thái — Checkpoint 10
+
+Checkpoint 10 đã chuyển hướng kế hoạch tuần đầu từ WASM demo sang một browser vertical slice cụ thể:
+
+```text
+AFF fixture -> Rust parser -> timing context -> renderer scene/SVG -> WASM JSON contract -> React/Vite UI
+```
+
+Phần đã hoàn thành trong checkpoint này:
+
+* `crates/wasm` có boundary JSON versioned, DTO riêng và native tests.
+* `apps/web` có React/Vite app tối thiểu để parse/render fixture checkpoint 9.
+* Frontend gọi WASM thật và không parse AFF bằng TypeScript.
+* SVG được mount qua `DOMParser` và guard trust boundary.
+* Root scripts, CI workflow, README và `docs/WASM_CONTRACT.md` được thêm cho lát cắt này.
+
+Các mục metadata explorer, analytics, replay, offline/PWA và backend vẫn nằm ngoài scope checkpoint 10.
+
 Master plan hiện tại mô tả một nền tảng rất lớn: metadata explorer, chart renderer, replay engine, analytics, offline/PWA, lore graph, progression và AI-assisted analysis. Nếu triển khai đồng thời, dự án dễ biến thành một monorepo phức tạp nhưng không có tính năng nào hoàn thiện.
 
 Vì vậy, kế hoạch thực hiện nên đi theo nguyên tắc:

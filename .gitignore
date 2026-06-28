@@ -1,5 +1,6 @@
 docs/*
 !docs/CHART_VISUAL_MODEL.md
+!docs/WASM_CONTRACT.md
 !docs/research/
 docs/research/*
 !docs/research/ARCCREATE_CHART_VISUAL_RESEARCH.md
@@ -7,3 +8,15 @@ target/
 .vscode/
 ArcCreate/
 sekai-viewer/
+crates/wasm/pkg/
+node_modules/
+apps/*/dist/
+apps/*/node_modules/
+apps/*/playwright-report/
+apps/*/test-results/
+coverage/
+.pnpm-store/
+.agents/
+test-script.txt
+docs/
+artifacts/
