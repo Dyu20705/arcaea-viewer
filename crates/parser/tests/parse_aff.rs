@@ -1,7 +1,7 @@
 use std::panic;
 
 use arcaea_viewer_core::{ArcColor, ArcCurve, ChartEvent, TimingGroupId};
-use arcaea_viewer_parser::{DiagnosticCode, parse_chart};
+use arcaea_viewer_parser::{DiagnosticCategory, DiagnosticCode, parse_chart};
 
 fn fixture(name: &str) -> String {
     let path = format!(
@@ -107,6 +107,31 @@ fn invalid_coordinate_becomes_domain_diagnostic() {
         parse_chart(&fixture("invalid_arc_coordinate.aff")).expect_err("invalid coordinate");
 
     assert_eq!(diagnostics[0].code, DiagnosticCode::DomainValidationError);
+}
+
+#[test]
+fn multiple_domain_diagnostics_are_reported_in_source_order() {
+    let diagnostics =
+        parse_chart(&fixture("multiple_domain_errors.aff")).expect_err("multiple diagnostics");
+
+    let messages: Vec<&str> = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+
+    assert_eq!(
+        messages,
+        [
+            "invalid ground lane",
+            "invalid hold interval",
+            "invalid arc start x coordinate"
+        ]
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.category == DiagnosticCategory::Domain)
+    );
 }
 
 #[test]

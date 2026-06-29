@@ -44,6 +44,7 @@ pub struct BoundaryErrorDto {
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticDto {
     pub code: String,
+    pub category: String,
     pub severity: String,
     pub message: String,
     pub line: usize,
@@ -401,6 +402,7 @@ fn diagnostic_dtos(source: &str, diagnostics: &[Diagnostic]) -> Vec<DiagnosticDt
             let location = source_map.line_column(diagnostic.span.start);
             DiagnosticDto {
                 code: diagnostic.code.to_string(),
+                category: diagnostic.category.to_string(),
                 severity: diagnostic.severity.to_string(),
                 message: diagnostic.message.clone(),
                 line: location.line,
@@ -750,6 +752,7 @@ mod tests {
         assert!(!envelope.diagnostics.is_empty());
         let diagnostic = &envelope.diagnostics[0];
         assert_eq!(diagnostic.code, "DOMAIN_VALIDATION_ERROR");
+        assert_eq!(diagnostic.category, "domain");
         assert_eq!(diagnostic.severity, "error");
         assert!(!diagnostic.message.is_empty());
         assert!(diagnostic.line > 0);

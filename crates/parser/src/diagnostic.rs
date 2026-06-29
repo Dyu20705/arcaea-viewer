@@ -57,6 +57,17 @@ pub enum DiagnosticCategory {
     Domain,
 }
 
+impl fmt::Display for DiagnosticCategory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lexical => f.write_str("lexical"),
+            Self::Syntax => f.write_str("syntax"),
+            Self::Unsupported => f.write_str("unsupported"),
+            Self::Domain => f.write_str("domain"),
+        }
+    }
+}
+
 /// Structured parser diagnostic with source location.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
