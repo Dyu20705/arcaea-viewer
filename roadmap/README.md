@@ -23,9 +23,11 @@ The workflow is manual (`workflow_dispatch`) and defaults to `dry-run`.
 
 ```bash
 bash scripts/bootstrap-roadmap.sh --dry-run --phase all --start-date 2026-07-14
-bash scripts/bootstrap-roadmap.sh --apply --phase week-1 --start-date 2026-07-14
+bash scripts/bootstrap-roadmap.sh --apply --phase all --start-date 2026-07-14
 bash scripts/bootstrap-roadmap.sh --apply --phase all --close-superseded --force-update
 ```
+
+Use `--phase` for later updates after the root roadmap and referenced cross-phase issues already exist. The first write should normally use `--phase all` so the full issue map is available before sub-issue and dependency relationships are created.
 
 `--force-update` enforces the manifest's open/closed state for managed issues. Without it, normal open issues are not forcibly reopened or closed; superseded closures still require `--close-superseded`.
 
