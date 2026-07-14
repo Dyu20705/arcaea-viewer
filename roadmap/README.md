@@ -40,7 +40,7 @@ Use `--phase` for later updates after the root roadmap and referenced cross-phas
 ```bash
 bash -n scripts/bootstrap-roadmap.sh
 bash -n tests/roadmap/test-bootstrap-roadmap.sh
-tests/roadmap/test-bootstrap-roadmap.sh
+bash tests/roadmap/test-bootstrap-roadmap.sh
 ```
 
 The CI roadmap job runs these tests and then performs a live read-only dry-run against the repository. The tests cover shell-input rejection, live-state planning, duplicate-marker rejection, and exact parent/dependency reconciliation.
