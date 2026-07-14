@@ -11,9 +11,10 @@ REPO="${GITHUB_REPOSITORY:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LABELS_FILE="$ROOT_DIR/roadmap/labels.json"
 MILESTONES_FILE="$ROOT_DIR/roadmap/milestones.json"
-ISSUES_FILE="$ROOT_DIR/roadmap/issues.json"
+ISSUES_INDEX_FILE="$ROOT_DIR/roadmap/issues.index.json"
 TMP_DIR="$(mktemp -d)"
-ISSUE_MAP="$TMP_DIR/issues.json"
+ISSUES_FILE="$TMP_DIR/issues.json"
+ISSUE_MAP="$TMP_DIR/issues-map.json"
 MILESTONE_MAP="$TMP_DIR/milestones.json"
 
 cleanup() {
@@ -72,8 +73,34 @@ jq -e '.schemaVersion == 1 and (.labels | type == "array")' "$LABELS_FILE" >/dev
   die "invalid labels manifest"
 jq -e '.schemaVersion == 1 and (.milestones | type == "array")' "$MILESTONES_FILE" >/dev/null ||
   die "invalid milestones manifest"
-jq -e '.schemaVersion == 1 and (.issues | type == "array")' "$ISSUES_FILE" >/dev/null ||
-  die "invalid issues manifest"
+jq -e '.schemaVersion == 1 and (.includes | type == "array")' "$ISSUES_INDEX_FILE" >/dev/null ||
+  die "invalid issues index"
+
+build_issues_manifest() {
+  local -a files=()
+  while IFS= read -r relative_path; do
+    [[ "$relative_path" != /* && "$relative_path" != *".."* ]] ||
+      die "unsafe issue include path: $relative_path"
+    local full_path="$ROOT_DIR/roadmap/$relative_path"
+    [[ -f "$full_path" ]] || die "missing issue manifest: $relative_path"
+    jq -e '.schemaVersion == 1 and (.issues | type == "array")' "$full_path" >/dev/null ||
+      die "invalid issue manifest: $relative_path"
+    files+=("$full_path")
+  done < <(jq -r '.includes[]' "$ISSUES_INDEX_FILE")
+
+  ((${#files[@]} > 0)) || die "issues index contains no manifests"
+
+  jq -s --slurpfile index "$ISSUES_INDEX_FILE" '
+    {
+      schemaVersion: $index[0].schemaVersion,
+      repository: $index[0].repository,
+      defaults: ($index[0].defaults // {}),
+      issues: (map(.issues) | add)
+    }
+  ' "${files[@]}" >"$ISSUES_FILE"
+}
+
+build_issues_manifest
 
 date -u -d "$START_DATE" +%F >/dev/null 2>&1 ||
   die "--start-date must be understood by GNU date as YYYY-MM-DD"
@@ -92,6 +119,14 @@ api() {
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: $API_VERSION" \
     "$@"
+}
+
+write_api() {
+  if [[ "$MODE" == "dry-run" ]]; then
+    log "DRY-RUN gh api $*"
+    return 0
+  fi
+  api "$@"
 }
 
 urlencode() {
@@ -121,7 +156,7 @@ render_issue_body() {
       else "## " + $title + "\n\n" + bullets($values) + "\n"
       end;
     "<!-- roadmap-key: " + .key + " -->\n\n" +
-    "> Managed by `roadmap/issues.json` and `scripts/bootstrap-roadmap.sh`.\n\n" +
+    "> Managed by `roadmap/issues.index.json`, `roadmap/issues/*.json`, and `scripts/bootstrap-roadmap.sh`.\n\n" +
     "## Outcome\n\n" + .outcome + "\n\n" +
     section("Scope"; .scope) +
     section("Non-goals"; .nonGoals) +
