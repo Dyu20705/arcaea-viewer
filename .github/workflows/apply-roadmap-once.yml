@@ -16,7 +16,8 @@ concurrency:
 jobs:
   apply:
     # The squash-merge commit title below is the one-time authorization token.
-    if: ${{ github.event.head_commit.message == 'chore(roadmap): apply web MVP roadmap once' }}
+    # GitHub exposes the full title + body in head_commit.message, so match only its prefix.
+    if: ${{ startsWith(github.event.head_commit.message, 'chore(roadmap): apply web MVP roadmap once') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
