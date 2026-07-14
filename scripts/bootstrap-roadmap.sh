@@ -192,10 +192,11 @@ load_remote_state() {
       add
       | map(select(has("pull_request") | not))
       | reduce .[] as $issue ({};
-          if (($issue.body // "") | capture("roadmap-key: (?<key>[A-Za-z0-9._-]+)")? | .key) as $key
-          then .[$key] = {number: $issue.number, id: $issue.id, state: $issue.state, body: ($issue.body // "")}
-          else .
-          end
+          (($issue.body // "") | ((try capture("roadmap-key: (?<key>[A-Za-z0-9._-]+)").key catch null) // null)) as $key
+          | if $key
+            then .[$key] = {number: $issue.number, id: $issue.id, state: $issue.state, body: ($issue.body // "")}
+            else .
+            end
         )
     ' >"$ISSUE_MAP"
 
@@ -338,6 +339,14 @@ upsert_issues() {
     title="$(jq -r '.title' <<<"$issue_json")"
     target_state="$(jq -r '.state // "open"' <<<"$issue_json")"
     state_reason="$(jq -r '.stateReason // empty' <<<"$issue_json")"
+
+    if [[ "$target_state" == "closed" && "$CLOSE_SUPERSEDED" != "true" ]]; then
+      if [[ "$MODE" == "apply" ]]; then
+        resolve_existing_issue "$issue_json" >/dev/null
+      fi
+      log "Skipping superseded issue [$key]; pass --close-superseded to manage it"
+      continue
+    fi
     milestone_key="$(jq -r '.milestone // empty' <<<"$issue_json")"
     body="$(render_issue_body "$issue_json")"
     labels_json="$(jq -c '.labels // []' <<<"$issue_json")"
@@ -433,9 +442,10 @@ ensure_dependency() {
 apply_relations() {
   if [[ "$MODE" == "dry-run" ]]; then
     log "DRY-RUN relation plan"
-    jq -r --arg phase "$PHASE" '
+    jq -r --arg phase "$PHASE" --arg close_superseded "$CLOSE_SUPERSEDED" '
       .issues[]
       | select($phase == "all" or .phase == $phase)
+      | select((.state // "open") != "closed" or $close_superseded == "true")
       | .key as $key
       | if .parent then "sub-issue: \($key) -> \(.parent)" else empty end,
         ((.blockedBy // [])[] | "blocked-by: \($key) <- \(.)")
@@ -445,6 +455,10 @@ apply_relations() {
 
   log "Applying sub-issue hierarchy"
   jq -c '.issues[] | select(.parent != null)' "$ISSUES_FILE" | while IFS= read -r issue_json; do
+    target_state="$(jq -r '.state // "open"' <<<"$issue_json")"
+    if [[ "$target_state" == "closed" && "$CLOSE_SUPERSEDED" != "true" ]]; then
+      continue
+    fi
     issue_phase="$(jq -r '.phase' <<<"$issue_json")"
     if [[ "$PHASE" != "all" && "$FORCE_UPDATE" != "true" ]]; then
       phase_selected "$issue_phase" || continue
@@ -454,6 +468,10 @@ apply_relations() {
 
   log "Applying issue dependencies"
   jq -c '.issues[] | select((.blockedBy // []) | length > 0)' "$ISSUES_FILE" | while IFS= read -r issue_json; do
+    target_state="$(jq -r '.state // "open"' <<<"$issue_json")"
+    if [[ "$target_state" == "closed" && "$CLOSE_SUPERSEDED" != "true" ]]; then
+      continue
+    fi
     issue_phase="$(jq -r '.phase' <<<"$issue_json")"
     if [[ "$PHASE" != "all" && "$FORCE_UPDATE" != "true" ]]; then
       phase_selected "$issue_phase" || continue
