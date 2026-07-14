@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "labels": [
+    {
+      "name": "type:epic",
+      "color": "5319e7",
+      "description": "Parent outcome grouping related delivery issues"
+    },
+    {
+      "name": "type:feature",
+      "color": "1d76db",
+      "description": "User-visible product capability"
+    },
+    {
+      "name": "type:task",
+      "color": "c5def5",
+      "description": "Implementation or operational task"
+    },
+    {
+      "name": "type:decision",
+      "color": "fbca04",
+      "description": "Product, architecture, data, or design decision"
+    },
+    {
+      "name": "type:docs",
+      "color": "0075ca",
+      "description": "Documentation or content policy"
+    },
+    {
+      "name": "type:qa",
+      "color": "0e8a16",
+      "description": "Verification, testing, or release evidence"
+    },
+    {
+      "name": "phase:1-discovery",
+      "color": "d4c5f9",
+      "description": "Week 1 product, data, legal, and design gate"
+    },
+    {
+      "name": "phase:2-foundation",
+      "color": "bfdadc",
+      "description": "Week 2 web and data foundation"
+    },
+    {
+      "name": "phase:3-core-wiki",
+      "color": "bfe5bf",
+      "description": "Week 3 homepage, explore, songs, and packs"
+    },
+    {
+      "name": "phase:4-encyclopedia",
+      "color": "fef2c0",
+      "description": "Week 4 partners, story, and game topics"
+    },
+    {
+      "name": "phase:5-quality",
+      "color": "f9d0c4",
+      "description": "Week 5 accessibility, performance, security, and PWA"
+    },
+    {
+      "name": "phase:6-release",
+      "color": "c2e0c6",
+      "description": "Week 6 public preview and community readiness"
+    },
+    {
+      "name": "phase:post-mvp",
+      "color": "eeeeee",
+      "description": "Explicitly outside the six-week MVP"
+    },
+    {
+      "name": "area:product",
+      "color": "7057ff",
+      "description": "Product scope and information architecture"
+    },
+    {
+      "name": "area:ux",
+      "color": "d876e3",
+      "description": "User experience and visual design"
+    },
+    {
+      "name": "area:frontend",
+      "color": "0366d6",
+      "description": "React, Rsbuild, routing, UI, and browser behavior"
+    },
+    {
+      "name": "area:data",
+      "color": "006b75",
+      "description": "Schemas, static catalog, provenance, and updates"
+    },
+    {
+      "name": "area:content",
+      "color": "8a6d3b",
+      "description": "Wiki content and editorial quality"
+    },
+    {
+      "name": "area:legal",
+      "color": "b60205",
+      "description": "Licensing, provenance, and fan-project boundaries"
+    },
+    {
+      "name": "area:accessibility",
+      "color": "0052cc",
+      "description": "Accessibility and inclusive interaction"
+    },
+    {
+      "name": "area:performance",
+      "color": "0b7285",
+      "description": "Performance, bundle, images, and Core Web Vitals"
+    },
+    {
+      "name": "area:security",
+      "color": "d93f0b",
+      "description": "Application and supply-chain security"
+    },
+    {
+      "name": "area:release",
+      "color": "2cbe4e",
+      "description": "Deployment, release, and operations"
+    },
+    {
+      "name": "area:community",
+      "color": "6f42c1",
+      "description": "Contribution and community sustainability"
+    },
+    {
+      "name": "area:runtime",
+      "color": "9e9e9e",
+      "description": "Rust/WASM chart runtime retained for later"
+    },
+    {
+      "name": "priority:p0",
+      "color": "b60205",
+      "description": "Blocks the current MVP gate"
+    },
+    {
+      "name": "priority:p1",
+      "color": "d93f0b",
+      "description": "Important within the current phase"
+    },
+    {
+      "name": "priority:p2",
+      "color": "fbca04",
+      "description": "Useful but can be cut from the preview"
+    },
+    {
+      "name": "status:needs-decision",
+      "color": "fef2c0",
+      "description": "Requires a recorded decision before implementation"
+    },
+    {
+      "name": "status:needs-design",
+      "color": "d876e3",
+      "description": "Requires UX or visual design evidence"
+    },
+    {
+      "name": "status:human-required",
+      "color": "5319e7",
+      "description": "Needs maintainer judgment or manual evidence"
+    },
+    {
+      "name": "status:agent-ready",
+      "color": "0e8a16",
+      "description": "Well-scoped for AI-assisted implementation"
+    },
+    {
+      "name": "status:blocked",
+      "color": "b60205",
+      "description": "Cannot start until dependencies are resolved"
+    }
+  ]
+}

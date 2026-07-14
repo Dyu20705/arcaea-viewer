@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "repository": "Dyu20705/arcaea-viewer",
+  "defaults": {
+    "assignees": [
+      "Dyu20705"
+    ]
+  },
+  "includes": [
+    "issues/roadmap.json",
+    "issues/week-1.json",
+    "issues/week-2.json",
+    "issues/week-3.json",
+    "issues/week-4.json",
+    "issues/week-5.json",
+    "issues/week-6.json",
+    "issues/post-mvp.json",
+    "issues/cleanup.json"
+  ]
+}

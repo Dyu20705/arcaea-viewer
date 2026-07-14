@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "phase": "week-3",
+  "issues": [
+    {
+      "key": "week-3-epic",
+      "title": "[Epic · Week 3] Core wiki experience",
+      "phase": "week-3",
+      "milestone": "week-3",
+      "labels": ["type:epic", "phase:3-core-wiki", "area:product", "priority:p0"],
+      "outcome": "Complete the core wiki experience outcome without pulling later platform work into the current gate.",
+      "scope": ["Own the phase dependency order.", "Surface risks and scope cuts.", "Close the phase only with evidence."],
+      "acceptanceCriteria": ["Every child issue has a clear owner, milestone, and acceptance criteria.", "Blocked work is represented using issue dependencies.", "The phase gate has explicit evidence."],
+      "definitionOfDone": ["Acceptance criteria are verified.", "Relevant documentation and tests are updated.", "No unreviewed legal, accessibility, security, or performance exception is introduced."],
+      "parent": "web-mvp-roadmap",
+      "blockedBy": [],
+      "assignees": ["Dyu20705"],
+      "state": "open"
+    },
+    {
+      "key": "public-pages-epic",
+      "title": "[Epic · Weeks 3–4] Public wiki pages and related-entity product flow",
+      "phase": "week-3",
+      "milestone": "week-3",
+      "labels": ["type:epic", "phase:3-core-wiki", "area:frontend", "area:content", "priority:p0"],
+      "outcome": "Deliver a coherent player-facing wiki flow across the homepage, catalog, songs, packs, partners, story, and game topics.",
+      "scope": ["Own shared page templates and related-entity navigation.", "Keep content sourced from the validated static catalog.", "Require accessibility, responsive, and image states on every page."],
+      "acceptanceCriteria": ["Home → explore → entity detail flow works.", "Every page shows provenance/review status where appropriate.", "Missing optional data degrades gracefully.", "No page depends on chart runtime."],
+      "definitionOfDone": ["Acceptance criteria are verified.", "Relevant documentation and tests are updated.", "No unreviewed legal, accessibility, security, or performance exception is introduced."],
+      "parent": "week-3-epic",
+      "blockedBy": ["web-shell", "metadata-schema"],
+      "assignees": ["Dyu20705"],
+      "state": "open",
+      "existingNumber": 6
+    },
+    {
+      "key": "homepage",
+      "title": "[Week 3 · Feature] Homepage for latest release/event, discovery, and project/game introduction",
+      "phase": "week-3",
+      "milestone": "week-3",
+      "labels": ["type:feature", "phase:3-core-wiki", "area:frontend", "area:content", "area:ux", "priority:p0", "status:needs-design"],
+      "outcome": "Create a useful landing page centered on current game information and fast entry into the catalog.",
+      "scope": ["Latest release/event module.", "Featured songs, packs, partners, and story links.", "Concise project and game introduction.", "Search entry point, update status, legal disclaimer, and contribution path.", "Complete loading/empty/offline/error states."],
+      "acceptanceCriteria": ["Latest content comes from versioned catalog data.", "Primary discovery actions are visible without scrolling excessively.", "Hero art remains readable, responsive, licensed, and performant.", "Keyboard and screen-reader flow is tested."],
+      "definitionOfDone": ["Acceptance criteria are verified.", "Relevant documentation and tests are updated.", "No unreviewed legal, accessibility, security, or performance exception is introduced."],
+      "parent": "public-pages-epic",
+      "blockedBy": ["design-system", "static-data-loader"],
+      "assignees": ["Dyu20705"],
+      "state": "open"
+    },
+    {
+      "key": "explore",
+      "title": "[Week 3 · Feature] Fast explore search, sort, filters, and shareable URL state",
+      "phase": "week-3",
+      "milestone": "week-3",
+      "labels": ["type:feature", "phase:3-core-wiki", "area:frontend", "area:ux", "area:performance", "priority:p0", "status:needs-design"],
+      "outcome": "Let ordinary players efficiently find songs and related content using a compact, responsive catalog experience.",
+      "scope": ["Search title and artist.", "Filters for pack, difficulty, level/constant, BPM, and availability.", "Sort options and result count.", "URL query state, reset, no-results, and stale-index states.", "Keyboard-friendly controls and virtualisation only if measurements justify it."],
+      "acceptanceCriteria": ["Refreshing or sharing the URL preserves state.", "Filtering is deterministic and tested.", "No-results guidance is useful.", "Initial dataset performs within the agreed budget without premature complexity."],
+      "definitionOfDone": ["Acceptance criteria are verified.", "Relevant documentation and tests are updated.", "No unreviewed legal, accessibility, security, or performance exception is introduced."],
+      "parent": "public-pages-epic",
+      "blockedBy": ["static-data-loader", "design-system"],
+      "assignees": ["Dyu20705"],
+      "state": "open"
+    },
+    {
+      "key": "song-pack-pages",
+      "title": "[Week 3 · Feature] Song and pack detail pages with charts, sources, and related navigation",
+      "phase": "week-3",
+      "milestone": "week-3",
+      "labels": ["type:feature", "phase:3-core-wiki", "area:frontend", "area:content", "area:ux", "priority:p0", "status:needs-design"],
+      "outcome": "Provide high-quality song and pack pages that answer common player questions without exposing chart runtime features.",
+      "scope": ["Song title, artist, jacket if permitted, pack, release, BPM, charts, difficulty, constant/rating, note count, sources, review status, and related entities.", "Pack overview and song list.", "Missing or uncertain data presentation.", "SEO metadata and share preview hooks."],
+      "acceptanceCriteria": ["Every field has a defined source and unknown-value behavior.", "Related navigation works bidirectionally.", "Images use the approved pipeline.", "No AFF, playback, or analytics control appears."],
+      "definitionOfDone": ["Acceptance criteria are verified.", "Relevant documentation and tests are updated.", "No unreviewed legal, accessibility, security, or performance exception is introduced."],
+      "parent": "public-pages-epic",
+      "blockedBy": ["explore", "asset-pipeline"],
+      "assignees": ["Dyu20705"],
+      "state": "open"
+    }
+  ]
+}
