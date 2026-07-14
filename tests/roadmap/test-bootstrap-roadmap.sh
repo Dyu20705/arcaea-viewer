@@ -99,7 +99,7 @@ chmod +x "$MOCK_BIN/gh"
 
 run_script() {
   PATH="$MOCK_BIN:$PATH" ROADMAP_ROOT_DIR="$ROOT" ROADMAP_SLEEP_SECONDS=0 \
-    "$SCRIPT_UNDER_TEST" --repo owner/repo --start-date 2026-07-14 "$@"
+    bash "$SCRIPT_UNDER_TEST" --repo owner/repo --start-date 2026-07-14 "$@"
 }
 
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -112,7 +112,7 @@ assert_contains() {
 
 printf 'test: rejects injected start_date\n'
 marker="$TEST_TMP/injected"
-if PATH="$MOCK_BIN:$PATH" ROADMAP_ROOT_DIR="$ROOT" "$SCRIPT_UNDER_TEST" --dry-run --repo owner/repo --start-date "2026-07-14;touch $marker" >/dev/null 2>&1; then
+if PATH="$MOCK_BIN:$PATH" ROADMAP_ROOT_DIR="$ROOT" bash "$SCRIPT_UNDER_TEST" --dry-run --repo owner/repo --start-date "2026-07-14;touch $marker" >/dev/null 2>&1; then
   fail "malicious start_date was accepted"
 fi
 [[ ! -e "$marker" ]] || fail "injection marker was created"
