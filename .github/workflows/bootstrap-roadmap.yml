@@ -66,8 +66,18 @@ jobs:
           set -Eeuo pipefail
           jq -e '.schemaVersion == 1' roadmap/labels.json >/dev/null
           jq -e '.schemaVersion == 1' roadmap/milestones.json >/dev/null
-          jq -e '.schemaVersion == 1' roadmap/issues.json >/dev/null
+          jq -e '.schemaVersion == 1 and (.includes | length > 0)' roadmap/issues.index.json >/dev/null
+
+          while IFS= read -r manifest; do
+            jq -e '.schemaVersion == 1 and (.issues | type == "array")' "roadmap/$manifest" >/dev/null
+          done < <(jq -r '.includes[]' roadmap/issues.index.json)
+
           bash -n scripts/bootstrap-roadmap.sh
+          bash scripts/bootstrap-roadmap.sh \
+            --dry-run \
+            --phase roadmap \
+            --start-date "${{ inputs.start_date }}" \
+            --repo "${{ github.repository }}" >/dev/null
 
       - name: Bootstrap roadmap
         env:
