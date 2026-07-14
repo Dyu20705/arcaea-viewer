@@ -1,6 +1,6 @@
 # Roadmap automation
 
-This directory is the declarative source for labels, milestones, issue content, sub-issues, and issue dependencies.
+This directory is the declarative source for labels, milestones, issue content, sub-issues, and issue dependencies. `issues.index.json` lists reviewable phase manifests under `roadmap/issues/`.
 
 ## Safety model
 
@@ -10,7 +10,7 @@ The workflow is manual (`workflow_dispatch`) and defaults to `dry-run`.
 - `apply` writes labels, milestones, issues, sub-issue relationships, and dependencies.
 - superseded issue closure requires `--close-superseded`.
 - issue content is idempotently managed using a stable `roadmap-key` marker.
-- the script updates existing issue numbers declared in `issues.json` and discovers created issues by marker.
+- the script updates existing issue numbers declared in the phase manifests and discovers created issues by marker.
 
 ## Local prerequisites
 
