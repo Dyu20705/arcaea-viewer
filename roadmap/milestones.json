@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "milestones": [
+    {
+      "key": "week-1",
+      "title": "Web MVP Week 1 — Discovery & Design Gate",
+      "description": "Product, data, legal, information architecture, and UI direction.",
+      "dueOffsetDays": 7
+    },
+    {
+      "key": "week-2",
+      "title": "Web MVP Week 2 — Web Foundation",
+      "description": "Rsbuild, Tailwind, app shell, static catalog, and quality baseline.",
+      "dueOffsetDays": 14
+    },
+    {
+      "key": "week-3",
+      "title": "Web MVP Week 3 — Core Wiki",
+      "description": "Homepage, explore, songs, packs, and related navigation.",
+      "dueOffsetDays": 21
+    },
+    {
+      "key": "week-4",
+      "title": "Web MVP Week 4 — Game Encyclopedia",
+      "description": "Partners, story, game topics, and content update workflow.",
+      "dueOffsetDays": 28
+    },
+    {
+      "key": "week-5",
+      "title": "Web MVP Week 5 — Production Quality",
+      "description": "Accessibility, performance, PWA, SEO, and security.",
+      "dueOffsetDays": 35
+    },
+    {
+      "key": "week-6",
+      "title": "Web MVP Week 6 — Public Preview",
+      "description": "Acceptance, GitHub Pages, release evidence, and community readiness.",
+      "dueOffsetDays": 42
+    },
+    {
+      "key": "post-mvp",
+      "title": "Post-MVP — Platform Expansion",
+      "description": "Runtime, analytics, replay, broader datasets, localization, and optional services.",
+      "dueOffsetDays": null
+    }
+  ]
+}
