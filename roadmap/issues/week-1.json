@@ -114,7 +114,6 @@
       "parent": "week-1-epic",
       "blockedBy": [],
       "assignees": ["Dyu20705"],
-      "state": "open",
       "existingNumber": 12,
       "evidence": [
         "docs/roadmap/WEB_MVP_ROADMAP.md defines the six weekly gates and scope cuts.",
