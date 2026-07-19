@@ -1,0 +1,6 @@
+node_modules
+.pnpm-store
+.vscode
+.agents
+test-script.txt
+target
