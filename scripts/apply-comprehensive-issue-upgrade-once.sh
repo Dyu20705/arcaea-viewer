@@ -18,11 +18,13 @@ cd "$ROOT_DIR"
 log "Validating shell and JSON inputs"
 bash -n scripts/bootstrap-roadmap.sh
 bash -n tests/roadmap/test-bootstrap-roadmap.sh
+bash -n tests/roadmap/test-existing-number-map.sh
 bash -n scripts/apply-comprehensive-issue-upgrade-once.sh
 jq -e '.schemaVersion == 1 and (.issues | type == "array")' roadmap/issue-execution-guidance.json >/dev/null
 
 log "Running roadmap unit and security tests"
 bash tests/roadmap/test-bootstrap-roadmap.sh
+bash tests/roadmap/test-existing-number-map.sh
 
 log "Reading current GitHub state and recording the pre-apply plan"
 ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh \
