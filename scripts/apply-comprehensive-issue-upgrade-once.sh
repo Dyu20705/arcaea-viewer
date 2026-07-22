@@ -1,49 +1,64 @@
 #!/usr/bin/env bash
-set -u
+set -Eeuo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 START_DATE="${ROADMAP_START_DATE:-2026-07-14}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d)"
 OUTPUT_FILE="$ROOT_DIR/roadmap-diagnostic.txt"
-trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$ROOT_DIR"
 
-unresolved_pattern='dry-run (create|update) (label|milestone|issue)|dry-run (add|remove) (parent|dependency)|deferred (parent|dependency)|WARNING:'
+command -v jq >/dev/null 2>&1
+command -v gh >/dev/null 2>&1
 
-ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh \
-  --dry-run \
-  --phase all \
-  --force-update \
-  --start-date "$START_DATE" \
-  --repo "$REPO" >"$TMP_DIR/plan.log" 2>&1
-plan_rc=$?
+current_file="$(mktemp)"
+desired_file="$(mktemp)"
+trap 'rm -f "$current_file" "$desired_file"' EXIT
 
-if [[ $plan_rc -eq 0 ]]; then
-  grep -E "$unresolved_pattern" "$TMP_DIR/plan.log" >"$TMP_DIR/result.log" || true
-  if [[ -s "$TMP_DIR/result.log" ]]; then
-    heading="Managed drift remains"
-    detail="$(head -n 240 "$TMP_DIR/result.log")"
+gh api --paginate "repos/$REPO/milestones?state=all&per_page=100" |
+  jq -s 'add // [] | map({number,state,title,description:(.description // ""),due_on:(.due_on // null),updated_at})' >"$current_file"
+
+jq --arg start "$START_DATE" '
+  [.milestones[] |
+    . as $m |
+    {
+      key: .key,
+      title: .title,
+      description: (.description // ""),
+      due_on: (if .dueOffsetDays == null then null else "__COMPUTE__" end),
+      dueOffsetDays: (.dueOffsetDays // null)
+    }
+  ]
+' roadmap/milestones.json >"$desired_file.raw"
+
+jq -c '.[]' "$desired_file.raw" | while IFS= read -r row; do
+  offset="$(jq -r '.dueOffsetDays // empty' <<<"$row")"
+  due="null"
+  if [[ -n "$offset" ]]; then
+    due="$(date -u -d "$START_DATE + $offset days" +%Y-%m-%dT23:59:59Z)"
+    jq --arg due "$due" '.due_on=$due | del(.dueOffsetDays)' <<<"$row"
   else
-    heading="No managed drift"
-    detail="The authoritative read-only plan contains no create, update, relation, deferred, or warning action."
+    jq '.due_on=null | del(.dueOffsetDays)' <<<"$row"
   fi
-else
-  heading="Read-only plan failed"
-  detail="$(tail -n 240 "$TMP_DIR/plan.log")"
-fi
+done | jq -s '.' >"$desired_file"
 
-{
-  printf 'heading=%s\n' "$heading"
-  printf 'exit_code=%s\n' "$plan_rc"
-  printf 'mode=read-only --dry-run --force-update\n'
-  printf '%s\n' '--- detail ---'
-  printf '%s\n' "$detail"
-  printf '%s\n' '--- end detail ---'
-} >"$OUTPUT_FILE"
+jq -n --slurpfile current "$current_file" --slurpfile desired "$desired_file" '
+  {
+    current: $current[0],
+    desired: $desired[0],
+    comparison: [
+      $desired[0][] as $d |
+      ($current[0] | map(select(.title == $d.title)) | .[0] // null) as $c |
+      {
+        key: $d.key,
+        title: $d.title,
+        current: $c,
+        desired: $d,
+        description_equal: (($c.description // "") == $d.description),
+        state_open: (($c.state // "") == "open"),
+        due_equal: (($c.due_on // null) == $d.due_on)
+      }
+    ]
+  }
+' >"$OUTPUT_FILE"
 
-printf '[issue-upgrade] wrote %s\n' "$OUTPUT_FILE"
-printf '%s\n' "$detail"
-
-# Diagnostic workflow intentionally succeeds so the artifact is always uploaded.
-exit 0
+printf '[issue-upgrade] wrote milestone comparison to %s\n' "$OUTPUT_FILE"
