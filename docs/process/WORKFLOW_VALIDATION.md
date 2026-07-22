@@ -12,7 +12,7 @@ This document records the consistency review and tabletop validation for issue #
 | Target branch | `main` |
 | Validation owner | Repository maintainer |
 | Canonical roadmap start date | `2026-07-14` |
-| Status | Awaiting automated checks and maintainer approval |
+| Status | Automated validation complete; awaiting maintainer approval |
 
 The goal is not to prove that every future contribution will be correct. The goal is to verify that the workflow provides enough information to decide whether work is Ready, implement it without inventing policy, evaluate evidence, and decide whether it is Done.
 
@@ -223,14 +223,14 @@ A successful exit code is not enough; review the printed plan.
 | Documentation consistency review | Complete | Sections 3–4 |
 | Metadata-correction tabletop | Complete | Section 5; current decision is Not Ready |
 | Accessibility-fix tabletop | Complete | Section 6; current decision is Not Ready |
-| Focused five-file diff | Pending | Verify after branch rebuild |
-| Whitespace and link review | Pending | PR review |
-| `pnpm check` | Pending | GitHub Actions / local run |
-| Roadmap tests | Pending | GitHub Actions / local run |
-| Live roadmap dry-run | Pending | GitHub Actions / local run |
+| Focused five-file diff | Complete | GitHub comparison against `main` |
+| Whitespace and link review | Complete | Manual review of the final five-file diff and repository-relative links |
+| `pnpm check` | Complete | CI run `29920882369`, job `check` |
+| Roadmap tests | Complete | CI run `29920882369`, job `roadmap-automation` |
+| Live roadmap dry-run | Complete | CI run `29920882369`, job `roadmap-automation` |
 | Maintainer policy approval | Pending | Maintainer comment on PR or issue #2 |
 
-Do not change a Pending status without actual evidence.
+The evidence-only update that records these results must also retain green checks on the final pull-request head.
 
 ## 10. Maintainer approval gate
 
