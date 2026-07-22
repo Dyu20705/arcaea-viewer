@@ -373,7 +373,7 @@ upsert_milestones() {
   local milestone key title description offset due_on current number action payload response
   while IFS= read -r milestone; do
     key="$(jq -r '.key' <<<"$milestone")"; title="$(jq -r '.title' <<<"$milestone")"; description="$(jq -r '.description // ""' <<<"$milestone")"; offset="$(jq -r '.dueOffsetDays // empty' <<<"$milestone")"
-    due_on=""; [[ -z "$offset" ]] || due_on="$(date -u -d "$START_DATE + $offset days" +%Y-%m-%dT23:59:59Z)"
+    due_on=""; [[ -z "$offset" ]] || due_on="$(date -u -d "$START_DATE + $offset days" +%Y-%m-%dT00:00:00Z)"
     current="$(jq -c --arg title "$title" '.[$title] // null' "$MILESTONE_MAP")"; action="create"
     if [[ "$current" != "null" ]]; then
       if jq -e --arg description "$description" --arg due "$due_on" '.description == $description and .state == "open" and ((.due_on // "") == $due)' <<<"$current" >/dev/null; then action="no-op"; else action="update"; fi
