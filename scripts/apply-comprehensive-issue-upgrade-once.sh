@@ -4,61 +4,72 @@ set -Eeuo pipefail
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 START_DATE="${ROADMAP_START_DATE:-2026-07-14}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUTPUT_FILE="$ROOT_DIR/roadmap-diagnostic.txt"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$ROOT_DIR"
 
-command -v jq >/dev/null 2>&1
-command -v gh >/dev/null 2>&1
+log() { printf '[issue-upgrade] %s\n' "$*"; }
+die() { printf '[issue-upgrade] ERROR: %s\n' "$*" >&2; exit 1; }
 
-current_file="$(mktemp)"
-desired_file="$(mktemp)"
-trap 'rm -f "$current_file" "$desired_file"' EXIT
+unresolved_pattern='dry-run (create|update) (label|milestone|issue)|dry-run (add|remove) (parent|dependency)|deferred (parent|dependency)|WARNING:'
 
-gh api --paginate "repos/$REPO/milestones?state=all&per_page=100" |
-  jq -s 'add // [] | map({number,state,title,description:(.description // ""),due_on:(.due_on // null),updated_at})' >"$current_file"
-
-jq --arg start "$START_DATE" '
-  [.milestones[] |
-    . as $m |
-    {
-      key: .key,
-      title: .title,
-      description: (.description // ""),
-      due_on: (if .dueOffsetDays == null then null else "__COMPUTE__" end),
-      dueOffsetDays: (.dueOffsetDays // null)
-    }
-  ]
-' roadmap/milestones.json >"$desired_file.raw"
-
-jq -c '.[]' "$desired_file.raw" | while IFS= read -r row; do
-  offset="$(jq -r '.dueOffsetDays // empty' <<<"$row")"
-  due="null"
-  if [[ -n "$offset" ]]; then
-    due="$(date -u -d "$START_DATE + $offset days" +%Y-%m-%dT23:59:59Z)"
-    jq --arg due "$due" '.due_on=$due | del(.dueOffsetDays)' <<<"$row"
-  else
-    jq '.due_on=null | del(.dueOffsetDays)' <<<"$row"
-  fi
-done | jq -s '.' >"$desired_file"
-
-jq -n --slurpfile current "$current_file" --slurpfile desired "$desired_file" '
-  {
-    current: $current[0],
-    desired: $desired[0],
-    comparison: [
-      $desired[0][] as $d |
-      ($current[0] | map(select(.title == $d.title)) | .[0] // null) as $c |
-      {
-        key: $d.key,
-        title: $d.title,
-        current: $c,
-        desired: $d,
-        description_equal: (($c.description // "") == $d.description),
-        state_open: (($c.state // "") == "open"),
-        due_equal: (($c.due_on // null) == $d.due_on)
-      }
-    ]
+run_plan() {
+  local output="$1"
+  shift
+  ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh "$@" >"$output" 2>&1 || {
+    tail -n 200 "$output" >&2 || true
+    return 1
   }
-' >"$OUTPUT_FILE"
+}
 
-printf '[issue-upgrade] wrote milestone comparison to %s\n' "$OUTPUT_FILE"
+log "Running shell and roadmap regression checks"
+bash -n scripts/bootstrap-roadmap.sh
+bash -n tests/roadmap/test-bootstrap-roadmap.sh
+bash -n tests/roadmap/test-existing-number-map.sh
+bash tests/roadmap/test-bootstrap-roadmap.sh >/dev/null
+bash tests/roadmap/test-existing-number-map.sh >/dev/null
+
+log "Capturing authoritative pre-apply plan"
+run_plan "$TMP_DIR/pre.log" \
+  --dry-run --phase all --force-update --start-date "$START_DATE" --repo "$REPO"
+pre_changes="$(grep -Ec "$unresolved_pattern" "$TMP_DIR/pre.log" || true)"
+log "Pre-apply managed drift lines: $pre_changes"
+grep -E "$unresolved_pattern" "$TMP_DIR/pre.log" || true
+
+log "Applying reviewed roadmap without closing superseded issues"
+ROADMAP_SLEEP_SECONDS="${ROADMAP_SLEEP_SECONDS:-0.2}" bash scripts/bootstrap-roadmap.sh \
+  --apply --phase all --force-update --start-date "$START_DATE" --repo "$REPO" \
+  >"$TMP_DIR/apply.log" 2>&1 || {
+    tail -n 240 "$TMP_DIR/apply.log" >&2 || true
+    die "roadmap apply failed"
+  }
+applied_changes="$(grep -Ec 'apply (create|update) (label|milestone|issue)|apply (add|remove) (parent|dependency)' "$TMP_DIR/apply.log" || true)"
+log "Applied managed changes: $applied_changes"
+
+log "Running strict post-apply no-drift audit"
+run_plan "$TMP_DIR/post.log" \
+  --dry-run --phase all --force-update --start-date "$START_DATE" --repo "$REPO"
+if grep -Eq "$unresolved_pattern" "$TMP_DIR/post.log"; then
+  grep -E "$unresolved_pattern" "$TMP_DIR/post.log" >&2 || true
+  die "post-apply audit found managed drift"
+fi
+
+no_op_issues="$(grep -Ec 'dry-run no-op issue' "$TMP_DIR/post.log" || true)"
+no_op_milestones="$(grep -Ec 'dry-run no-op milestone' "$TMP_DIR/post.log" || true)"
+no_op_parents="$(grep -Ec 'dry-run no-op parent' "$TMP_DIR/post.log" || true)"
+no_op_dependencies="$(grep -Ec 'dry-run no-op dependencies' "$TMP_DIR/post.log" || true)"
+
+log "Audit passed: issues=$no_op_issues milestones=$no_op_milestones parents=$no_op_parents dependencies=$no_op_dependencies"
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  {
+    printf '## Comprehensive issue guidance apply\n\n'
+    printf -- '- Pre-apply drift lines: `%s`\n' "$pre_changes"
+    printf -- '- Applied managed changes: `%s`\n' "$applied_changes"
+    printf -- '- No-op issues: `%s`\n' "$no_op_issues"
+    printf -- '- No-op milestones: `%s`\n' "$no_op_milestones"
+    printf -- '- No-op parent checks: `%s`\n' "$no_op_parents"
+    printf -- '- No-op dependency checks: `%s`\n' "$no_op_dependencies"
+    printf -- '- Superseded issue closure: `not authorized`\n'
+  } >>"$GITHUB_STEP_SUMMARY"
+fi
