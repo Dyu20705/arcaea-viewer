@@ -15,6 +15,19 @@ command -v gh >/dev/null 2>&1 || die "gh is required"
 
 cd "$ROOT_DIR"
 
+run_bootstrap_capture() {
+  local label="$1" output_file="$2"
+  shift 2
+  if ! ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh "$@" >"$output_file" 2>&1; then
+    printf '%s\n' "--- $label failed ---" >&2
+    tail -n 160 "$output_file" >&2 || true
+    printf '%s\n' "--- end $label failure ---" >&2
+    return 1
+  fi
+}
+
+unresolved_pattern='dry-run (create|update) (label|milestone|issue)|dry-run (add|remove) (parent|dependency)|deferred (parent|dependency)|WARNING:'
+
 log "Validating shell and JSON inputs"
 bash -n scripts/bootstrap-roadmap.sh
 bash -n tests/roadmap/test-bootstrap-roadmap.sh
@@ -23,55 +36,82 @@ bash -n scripts/apply-comprehensive-issue-upgrade-once.sh
 jq -e '.schemaVersion == 1 and (.issues | type == "array")' roadmap/issue-execution-guidance.json >/dev/null
 
 log "Running roadmap unit and security tests"
-bash tests/roadmap/test-bootstrap-roadmap.sh
-bash tests/roadmap/test-existing-number-map.sh
+bash tests/roadmap/test-bootstrap-roadmap.sh >/dev/null
+bash tests/roadmap/test-existing-number-map.sh >/dev/null
+log "Roadmap tests passed"
 
 log "Reading current GitHub state and recording the pre-apply plan"
-ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh \
+run_bootstrap_capture "pre-apply dry-run" "$TMP_DIR/pre-apply.log" \
   --dry-run \
   --phase all \
   --force-update \
   --start-date "$START_DATE" \
-  --repo "$REPO" | tee "$TMP_DIR/pre-apply.log"
+  --repo "$REPO"
 
 planned_updates="$(grep -Ec 'dry-run (create|update) (label|milestone|issue)' "$TMP_DIR/pre-apply.log" || true)"
 planned_relation_changes="$(grep -Ec 'dry-run (add|remove) (parent|dependency)' "$TMP_DIR/pre-apply.log" || true)"
 log "Pre-apply plan: $planned_updates managed field updates; $planned_relation_changes relation changes"
+if ((planned_updates + planned_relation_changes > 0)); then
+  grep -E "$unresolved_pattern" "$TMP_DIR/pre-apply.log" || true
+fi
 
 log "Applying reviewed manifests without closing superseded issues"
-ROADMAP_SLEEP_SECONDS="${ROADMAP_SLEEP_SECONDS:-0.2}" bash scripts/bootstrap-roadmap.sh \
+if ! ROADMAP_SLEEP_SECONDS="${ROADMAP_SLEEP_SECONDS:-0.2}" bash scripts/bootstrap-roadmap.sh \
   --apply \
   --phase all \
   --force-update \
   --start-date "$START_DATE" \
-  --repo "$REPO" | tee "$TMP_DIR/apply.log"
+  --repo "$REPO" >"$TMP_DIR/apply.log" 2>&1; then
+  printf '%s\n' '--- apply failed ---' >&2
+  tail -n 200 "$TMP_DIR/apply.log" >&2 || true
+  printf '%s\n' '--- end apply failure ---' >&2
+  die "roadmap apply failed"
+fi
+applied_changes="$(grep -Ec 'apply (create|update) (label|milestone|issue)|apply (add|remove) (parent|dependency)' "$TMP_DIR/apply.log" || true)"
+log "Apply completed with $applied_changes managed changes"
 
 log "Auditing post-apply GitHub state"
-ROADMAP_SLEEP_SECONDS=0 bash scripts/bootstrap-roadmap.sh \
-  --dry-run \
-  --phase all \
-  --force-update \
-  --start-date "$START_DATE" \
-  --repo "$REPO" | tee "$TMP_DIR/post-apply.log"
+audit_passed="false"
+audit_attempt=1
+while ((audit_attempt <= 3)); do
+  run_bootstrap_capture "post-apply audit attempt $audit_attempt" "$TMP_DIR/post-apply-$audit_attempt.log" \
+    --dry-run \
+    --phase all \
+    --force-update \
+    --start-date "$START_DATE" \
+    --repo "$REPO"
 
-if grep -Eq 'dry-run (create|update) (label|milestone|issue)|dry-run (add|remove) (parent|dependency)|deferred (parent|dependency)|WARNING:' "$TMP_DIR/post-apply.log"; then
-  printf '%s\n' '--- unresolved post-apply plan ---' >&2
-  grep -E 'dry-run (create|update) (label|milestone|issue)|dry-run (add|remove) (parent|dependency)|deferred (parent|dependency)|WARNING:' "$TMP_DIR/post-apply.log" >&2 || true
-  printf '%s\n' '--- end unresolved plan ---' >&2
-  die "post-apply audit found managed drift"
+  if ! grep -Eq "$unresolved_pattern" "$TMP_DIR/post-apply-$audit_attempt.log"; then
+    audit_passed="true"
+    cp "$TMP_DIR/post-apply-$audit_attempt.log" "$TMP_DIR/post-apply.log"
+    break
+  fi
+
+  log "Audit attempt $audit_attempt still reports managed drift"
+  grep -E "$unresolved_pattern" "$TMP_DIR/post-apply-$audit_attempt.log" || true
+  if ((audit_attempt < 3)); then
+    sleep 10
+  fi
+  audit_attempt=$((audit_attempt + 1))
+done
+
+if [[ "$audit_passed" != "true" ]]; then
+  die "post-apply audit found managed drift after 3 attempts"
 fi
 
 no_op_issues="$(grep -Ec 'dry-run no-op issue' "$TMP_DIR/post-apply.log" || true)"
 no_op_parents="$(grep -Ec 'dry-run no-op parent' "$TMP_DIR/post-apply.log" || true)"
 no_op_dependencies="$(grep -Ec 'dry-run no-op dependencies' "$TMP_DIR/post-apply.log" || true)"
 
-log "Post-apply audit passed: $no_op_issues issues, $no_op_parents parent checks, $no_op_dependencies dependency checks are no-op"
+log "Post-apply audit passed on attempt $audit_attempt: $no_op_issues issues, $no_op_parents parent checks, $no_op_dependencies dependency checks are no-op"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     printf '## Comprehensive issue upgrade\n\n'
     printf -- '- Pre-apply managed updates: `%s`\n' "$planned_updates"
     printf -- '- Pre-apply relation changes: `%s`\n' "$planned_relation_changes"
+    printf -- '- Applied managed changes: `%s`\n' "$applied_changes"
+    printf -- '- Post-apply audit attempt: `%s`\n' "$audit_attempt"
     printf -- '- Post-apply no-op issues: `%s`\n' "$no_op_issues"
     printf -- '- Post-apply no-op parent checks: `%s`\n' "$no_op_parents"
     printf -- '- Post-apply no-op dependency checks: `%s`\n' "$no_op_dependencies"
