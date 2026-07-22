@@ -428,7 +428,12 @@ upsert_issues() {
     fi
     log "$MODE $action issue${number:+ #$number} [$key]: $title"
     [[ "$MODE" == "apply" && "$action" != "no-op" ]] || continue
-    payload="$(jq -n --argjson desired "$desired" --argjson milestone "${milestone_number:-0}" '$desired | del(.milestone) + (if $milestone == 0 then {} else {milestone: $milestone} end)')"
+    payload="$(jq -n --argjson desired "$desired" --argjson milestone "${milestone_number:-0}" --arg action "$action" '
+      $desired | del(.milestone) +
+      (if $milestone != 0 then {milestone: $milestone}
+       elif $action == "update" then {milestone: null}
+       else {} end)
+    ')"
     if [[ "$action" == "create" ]]; then response="$(api --method POST "repos/$REPO/issues" --input - <<<"$payload")"; else response="$(api --method PATCH "repos/$REPO/issues/$number" --input - <<<"$payload")"; fi
     record_issue "$key" "$(jq -r '.number' <<<"$response")" "$(jq -r '.id' <<<"$response")" "$(jq -r '.state' <<<"$response")"
     jq --argjson response "$response" --argjson number "$(jq -r '.number' <<<"$response")" 'map(select(.number != $number)) + [$response]' "$REMOTE_ISSUES" >"$REMOTE_ISSUES.tmp" && mv "$REMOTE_ISSUES.tmp" "$REMOTE_ISSUES"
