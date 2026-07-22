@@ -118,7 +118,7 @@ fi
 
 case "$endpoint" in
   repos/owner/repo/labels\?*) printf '[{"name":"type:test","color":"abcdef","description":"test label"}]\n' ;;
-  repos/owner/repo/milestones\?*) printf '[{"number":1,"state":"open","title":"M1","description":"first milestone","due_on":"2026-07-14T23:59:59Z"}]\n' ;;
+  repos/owner/repo/milestones\?*) printf '[{"number":1,"state":"open","title":"M1","description":"first milestone","due_on":"2026-07-14T00:00:00Z"}]\n' ;;
   repos/owner/repo/issues\?*)
     if [[ "${MOCK_SCENARIO:-normal}" == "duplicate" ]]; then
       jq -n --arg body "$ROOT_BODY" '[
@@ -168,6 +168,7 @@ printf 'test: execution guidance renders and preserves no-op classification\n'
 : >"$MOCK_LOG"
 out="$(run_script --dry-run --phase roadmap 2>&1)"
 assert_contains "$out" "dry-run no-op issue #1 [root]"
+assert_contains "$out" "dry-run no-op milestone: m1 -> M1 due 2026-07-14T00:00:00Z"
 assert_contains "$out" "dry-run update issue #2 [child]"
 assert_contains "$out" "dry-run create issue [new]"
 assert_contains "$out" "parent drift for [child]"
