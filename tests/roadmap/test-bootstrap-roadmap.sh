@@ -26,13 +26,60 @@ cat >"$ROOT/roadmap/issues/test.json" <<'JSON'
 ]}
 JSON
 
+write_guidance_fixture() {
+  cat >"$ROOT/roadmap/issue-execution-guidance.json" <<'JSON'
+{"schemaVersion":1,"issues":[
+  {"key":"root","researchTasks":["Inspect the canonical roadmap."],"setupSteps":["Install Bash, jq, GNU date, and gh."],"implementationSteps":["Reconcile the managed root issue."],"uiUxTasks":["Confirm the issue is readable."],"dataBackendTasks":["Keep the manifest as the canonical data source."],"soloExecution":["Research, implement, verify, and record evidence in order."],"validationSteps":["Run the roadmap test harness."],"deliverables":["Updated managed issue body."],"risksAndRollback":["Use dry-run before apply and revert the manifest on unexpected drift."]},
+  {"key":"child","researchTasks":["Inspect the parent and blocker."],"setupSteps":["Prepare the roadmap test fixture."],"implementationSteps":["Reconcile title, body, parent, and blocker."],"uiUxTasks":["Keep instructions scannable."],"dataBackendTasks":["Preserve stable roadmap keys."],"soloExecution":["Finish the blocker before the child."],"validationSteps":["Verify exact relations."],"deliverables":["Updated child issue."],"risksAndRollback":["Restore the prior relation mapping if reconciliation is wrong."]},
+  {"key":"new","researchTasks":["Confirm the issue is not a duplicate."],"setupSteps":["Prepare labels and milestone."],"implementationSteps":["Create the managed issue."],"uiUxTasks":["Use a concise title and structured body."],"dataBackendTasks":["Record the generated issue number."],"soloExecution":["Create only after the parent exists."],"validationSteps":["Verify the created issue and parent."],"deliverables":["New managed issue."],"risksAndRollback":["Close the accidental duplicate and fix the manifest mapping."]}
+]}
+JSON
+}
+write_guidance_fixture
+
 ROOT_BODY='<!-- roadmap-key: root -->
 
-> Managed by `roadmap/issues.index.json`, `roadmap/issues/*.json`, and `scripts/bootstrap-roadmap.sh`.
+> Managed by `roadmap/issues.index.json`, `roadmap/issues/*.json`, `roadmap/issue-execution-guidance.json`, and `scripts/bootstrap-roadmap.sh`.
 
 ## Outcome
 
 Root outcome.
+
+## Research and source collection
+
+- Inspect the canonical roadmap.
+
+## Environment and setup
+
+- Install Bash, jq, GNU date, and gh.
+
+## Implementation sequence
+
+- Reconcile the managed root issue.
+
+## UI/UX responsibilities
+
+- Confirm the issue is readable.
+
+## Data/backend responsibilities
+
+- Keep the manifest as the canonical data source.
+
+## Solo execution order
+
+- Research, implement, verify, and record evidence in order.
+
+## Validation steps
+
+- Run the roadmap test harness.
+
+## Required deliverables
+
+- Updated managed issue body.
+
+## Risks, rollback, and scope cuts
+
+- Use dry-run before apply and revert the manifest on unexpected drift.
 
 ## Planning metadata
 
@@ -117,7 +164,7 @@ if PATH="$MOCK_BIN:$PATH" ROADMAP_ROOT_DIR="$ROOT" bash "$SCRIPT_UNDER_TEST" --d
 fi
 [[ ! -e "$marker" ]] || fail "injection marker was created"
 
-printf 'test: dry-run reads GitHub and classifies no-op/update/create\n'
+printf 'test: execution guidance renders and preserves no-op classification\n'
 : >"$MOCK_LOG"
 out="$(run_script --dry-run --phase roadmap 2>&1)"
 assert_contains "$out" "dry-run no-op issue #1 [root]"
@@ -125,6 +172,26 @@ assert_contains "$out" "dry-run update issue #2 [child]"
 assert_contains "$out" "dry-run create issue [new]"
 assert_contains "$out" "parent drift for [child]"
 assert_contains "$(cat "$MOCK_LOG")" "repos/owner/repo/issues\?state=all\&per_page=100"
+
+printf 'test: unknown execution guidance key fails closed\n'
+jq '.issues += [{"key":"ghost","researchTasks":["x"],"setupSteps":["x"],"implementationSteps":["x"],"uiUxTasks":["x"],"dataBackendTasks":["x"],"soloExecution":["x"],"validationSteps":["x"],"deliverables":["x"],"risksAndRollback":["x"]}]' \
+  "$ROOT/roadmap/issue-execution-guidance.json" >"$ROOT/roadmap/issue-execution-guidance.json.tmp"
+mv "$ROOT/roadmap/issue-execution-guidance.json.tmp" "$ROOT/roadmap/issue-execution-guidance.json"
+if run_script --dry-run --phase roadmap >"$TEST_TMP/unknown-guidance.out" 2>&1; then
+  fail "unknown guidance key was accepted"
+fi
+assert_contains "$(cat "$TEST_TMP/unknown-guidance.out")" "execution guidance references unknown issue key"
+write_guidance_fixture
+
+printf 'test: missing active issue execution guidance fails closed\n'
+jq '.issues |= map(select(.key != "child"))' \
+  "$ROOT/roadmap/issue-execution-guidance.json" >"$ROOT/roadmap/issue-execution-guidance.json.tmp"
+mv "$ROOT/roadmap/issue-execution-guidance.json.tmp" "$ROOT/roadmap/issue-execution-guidance.json"
+if run_script --dry-run --phase roadmap >"$TEST_TMP/missing-guidance.out" 2>&1; then
+  fail "missing active issue guidance was accepted"
+fi
+assert_contains "$(cat "$TEST_TMP/missing-guidance.out")" "missing execution guidance for active issue: child"
+write_guidance_fixture
 
 printf 'test: duplicate roadmap markers fail closed\n'
 if MOCK_SCENARIO=duplicate run_script --dry-run --phase roadmap >"$TEST_TMP/duplicate.out" 2>&1; then
