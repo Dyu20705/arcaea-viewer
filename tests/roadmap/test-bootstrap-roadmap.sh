@@ -226,6 +226,6 @@ mv "$ROOT/roadmap/issue-execution-guidance.json.tmp" "$ROOT/roadmap/issue-execut
 : >"$MOCK_LOG"
 out="$(run_script --apply --phase roadmap 2>&1)"
 assert_contains "$out" "apply update issue #1 [root]"
-assert_contains "$(cat "$MOCK_LOG")" '"milestone":null'
+assert_contains "$(cat "$MOCK_LOG")" '"milestone": null'
 
 printf 'All roadmap automation tests passed.\n'
