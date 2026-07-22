@@ -11,7 +11,8 @@ on:
       - edited
 
 permissions:
-  contents: write
+  contents: read
+  issues: write
 
 concurrency:
   group: apply-comprehensive-issue-guidance-once
@@ -22,14 +23,15 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'ops/comprehensive-issue-upgrade' &&
-      github.event.pull_request.title == 'chore(roadmap): patch canonical milestone timestamps'
+      github.event.pull_request.title == 'chore(roadmap): apply comprehensive issue guidance'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
       GITHUB_REPOSITORY: ${{ github.repository }}
-      PATCH_BRANCH: ops/comprehensive-issue-upgrade
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      ROADMAP_START_DATE: "2026-07-14"
+      ROADMAP_SLEEP_SECONDS: "0.2"
 
     steps:
       - name: Checkout exact reviewed PR head
@@ -38,7 +40,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      - name: Verify one-shot patch scope
+      - name: Verify one-shot apply scope
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -52,6 +54,6 @@ jobs:
             )
           ' changed-files.json >/dev/null
 
-      - name: Patch canonical milestone timestamps and run regression tests
+      - name: Apply and audit comprehensive issue guidance
         shell: bash
-        run: bash scripts/patch-milestone-canonical-time-once.sh
+        run: bash scripts/apply-comprehensive-issue-upgrade-once.sh
