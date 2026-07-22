@@ -1,37 +1,48 @@
-## Summary
-<!-- Describe what changed and why. -->
+## Outcome
+<!-- State the user, product, documentation, or engineering outcome. Do not describe planned functionality as already complete. -->
 
-## Related Issue
-<!-- Link the related issue. Use "Fixes #123" when this PR closes it. -->
+## Related issue and roadmap fit
+<!-- Link the issue. Use "Fixes #123" only when this PR fully satisfies and should close it. State MVP, post-MVP, or process scope. -->
+
+## Scope
+
+### Included
+- 
+
+### Excluded / deferred
+- 
 
 ## Changes
-<!-- List the main user-facing or technical changes. -->
+<!-- List the focused changes and important design or architecture decisions. -->
 
 - 
 
-## Screenshots / Recordings
-<!-- Add screenshots or recordings for UI changes. Leave blank if not applicable. -->
+## Verification evidence
+<!-- Record exact commands and observed results. Remove checks that are genuinely not applicable and explain why. -->
 
-## Testing
-<!-- Describe the checks you ran. -->
+- [ ] `pnpm check` for code, dependency, build, or runtime changes
+- [ ] Roadmap shell tests and live read-only dry-run for roadmap automation changes
+- [ ] Targeted regression test or deterministic reproduction for bug fixes
+- [ ] Manual acceptance flow for affected user-facing behavior
 
-- [ ] `pnpm exec tsc --noEmit`
-- [ ] `pnpm build`
+```text
+Commands and results:
 
-## Browser Testing
-<!-- For mobile testing, use a device on the same network as your dev machine. Safari is optional. -->
+```
 
-- [ ] Chrome (Desktop)
-- [ ] Chrome (Mobile)
-- [ ] Firefox (Desktop)
-- [ ] Firefox (Mobile)
-- [ ] Safari (Desktop, optional)
-- [ ] Safari (iPhone, optional)
-- [ ] Safari (iPad, optional)
+## UI/UX evidence
+<!-- For UI changes, attach representative screenshots/recordings and cover relevant loading, empty, error, offline, keyboard, responsive, zoom, reduced-motion, and missing-media states. Use N/A with a reason otherwise. -->
+
+## Data, provenance, privacy, and legal review
+<!-- Identify changed catalog records, schemas, sources, assets, permissions, personal data, external services, and publication risks. Use N/A with a reason otherwise. -->
+
+## Risks and rollback
+<!-- State residual risks, compatibility concerns, scope cuts, and the exact rollback or recovery path. -->
 
 ## Checklist
 
-- [ ] I have searched existing issues and pull requests.
-- [ ] I have linked a related issue or explained why one is not needed.
-- [ ] I have added or updated tests where appropriate.
-- [ ] I have updated documentation or translations where appropriate.
+- [ ] The PR is focused and does not include unrelated refactors, generated build output, local test artifacts, secrets, private data, proprietary chart/audio files, copied third-party prose, or unlicensed media.
+- [ ] Acceptance criteria are mapped to reviewable evidence.
+- [ ] Tests and documentation are added or updated where behavior or contracts changed.
+- [ ] New dependencies, workflows, permissions, external services, and operational costs are justified and least-privilege.
+- [ ] Human-required product, design, legal, licensing, security, privacy, and release decisions remain explicit.
