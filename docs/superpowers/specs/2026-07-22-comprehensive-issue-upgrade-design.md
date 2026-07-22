@@ -49,11 +49,12 @@ Issue bodies render the following sections when present:
 11. Technical constraints
 12. Acceptance criteria
 13. Test plan
-14. Required deliverables
-15. Required evidence
-16. Risks, rollback, and scope cuts
-17. Definition of Done
-18. Planning metadata
+14. Validation steps
+15. Required deliverables
+16. Required evidence
+17. Risks, rollback, and scope cuts
+18. Definition of Done
+19. Planning metadata
 
 The managed marker and existing planning metadata remain unchanged.
 
