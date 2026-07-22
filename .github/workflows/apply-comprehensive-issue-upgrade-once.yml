@@ -11,8 +11,7 @@ on:
       - edited
 
 permissions:
-  contents: read
-  issues: write
+  contents: write
 
 concurrency:
   group: apply-comprehensive-issue-guidance-once
@@ -23,15 +22,14 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'ops/comprehensive-issue-upgrade' &&
-      github.event.pull_request.title == 'chore(roadmap): apply comprehensive issue guidance'
+      github.event.pull_request.title == 'chore(roadmap): patch canonical milestone timestamps'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       GITHUB_REPOSITORY: ${{ github.repository }}
+      PATCH_BRANCH: ops/comprehensive-issue-upgrade
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      ROADMAP_START_DATE: "2026-07-14"
-      ROADMAP_SLEEP_SECONDS: "0.2"
 
     steps:
       - name: Checkout exact reviewed PR head
@@ -40,7 +38,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      - name: Verify one-shot change scope
+      - name: Verify one-shot patch scope
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -50,19 +48,10 @@ jobs:
 
           jq -e '
             all(.[ ];
-              test("^(roadmap/|scripts/bootstrap-roadmap[.]sh$|tests/roadmap/|docs/superpowers/|scripts/apply-comprehensive-issue-upgrade-once[.]sh$|[.]github/workflows/apply-comprehensive-issue-upgrade-once[.]yml$|[.]github/workflows/ci[.]yml$|[.]github/workflows/bootstrap-roadmap[.]yml$)")
+              test("^(roadmap/|scripts/bootstrap-roadmap[.]sh$|tests/roadmap/|docs/superpowers/|scripts/apply-comprehensive-issue-upgrade-once[.]sh$|scripts/patch-milestone-canonical-time-once[.]sh$|[.]github/workflows/apply-comprehensive-issue-upgrade-once[.]yml$|[.]github/workflows/ci[.]yml$|[.]github/workflows/bootstrap-roadmap[.]yml$)")
             )
           ' changed-files.json >/dev/null
 
-      - name: Run read-only roadmap diagnostic
+      - name: Patch canonical milestone timestamps and run regression tests
         shell: bash
-        run: bash scripts/apply-comprehensive-issue-upgrade-once.sh
-
-      - name: Upload roadmap diagnostic
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: roadmap-diagnostic
-          path: roadmap-diagnostic.txt
-          if-no-files-found: error
-          retention-days: 1
+        run: bash scripts/patch-milestone-canonical-time-once.sh
