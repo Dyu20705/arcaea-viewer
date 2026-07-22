@@ -81,7 +81,7 @@ Outputs:
 - end-to-end acceptance tests;
 - GitHub Pages deployment;
 - release checklist and rollback notes;
-- contribution guide and issue templates;
+- release-ready contribution workflow expansion, issue forms, and maintainer guidance;
 - public-preview readiness report.
 
 Gate: the release checklist is complete and every known exception is documented.
