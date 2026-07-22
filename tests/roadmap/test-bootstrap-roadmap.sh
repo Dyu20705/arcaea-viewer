@@ -97,18 +97,21 @@ printf '%q ' "$@" >>"$MOCK_LOG"; printf '\n' >>"$MOCK_LOG"
 shift
 method="GET"
 endpoint=""
+input=""
 while (($#)); do
   case "$1" in
     --method) method="$2"; shift 2 ;;
-    --input) cat >/dev/null; shift 2 ;;
+    --input) input="$(cat)"; shift 2 ;;
     -H) shift 2 ;;
     --paginate) shift ;;
     *) endpoint="$1"; shift ;;
   esac
 done
+[[ -z "$input" ]] || printf 'stdin=%s\n' "$input" >>"$MOCK_LOG"
 
 if [[ "$method" != "GET" ]]; then
   case "$endpoint" in
+    repos/owner/repo/issues/1) printf '{"number":1,"id":101,"state":"open","title":"Root","body":"x","labels":[{"name":"type:test"}],"assignees":[{"login":"tester"}],"milestone":null}\n' ;;
     repos/owner/repo/issues/2) printf '{"number":2,"id":102,"state":"open","title":"Child new","body":"x","labels":[],"assignees":[],"milestone":null}\n' ;;
     repos/owner/repo/issues) printf '{"number":3,"id":103,"state":"open","title":"New issue","body":"x","labels":[],"assignees":[],"milestone":null}\n' ;;
     *) printf '{}\n' ;;
@@ -212,5 +215,17 @@ assert_contains "$log" "--method DELETE repos/owner/repo/issues/9/sub_issue"
 assert_contains "$log" "--method POST repos/owner/repo/issues/1/sub_issues"
 assert_contains "$log" "--method DELETE repos/owner/repo/issues/2/dependencies/blocked_by/900"
 assert_contains "$log" "--method POST repos/owner/repo/issues/2/dependencies/blocked_by"
+
+printf 'test: apply clears an existing issue milestone when manifest omits one\n'
+jq '.issues |= map(select(.key == "root")) | .issues[0].milestone = null' \
+  "$ROOT/roadmap/issues/test.json" >"$ROOT/roadmap/issues/test.json.tmp"
+mv "$ROOT/roadmap/issues/test.json.tmp" "$ROOT/roadmap/issues/test.json"
+jq '.issues |= map(select(.key == "root"))' \
+  "$ROOT/roadmap/issue-execution-guidance.json" >"$ROOT/roadmap/issue-execution-guidance.json.tmp"
+mv "$ROOT/roadmap/issue-execution-guidance.json.tmp" "$ROOT/roadmap/issue-execution-guidance.json"
+: >"$MOCK_LOG"
+out="$(run_script --apply --phase roadmap 2>&1)"
+assert_contains "$out" "apply update issue #1 [root]"
+assert_contains "$(cat "$MOCK_LOG")" '"milestone":null'
 
 printf 'All roadmap automation tests passed.\n'
