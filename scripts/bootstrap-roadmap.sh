@@ -73,7 +73,59 @@ canonical_date="$(date -u -d "$START_DATE" +%F 2>/dev/null)" || die "--start-dat
 
 jq -e '.schemaVersion == 1 and (.labels | type == "array")' "$LABELS_FILE" >/dev/null || die "invalid labels manifest"
 jq -e '.schemaVersion == 1 and (.milestones | type == "array")' "$MILESTONES_FILE" >/dev/null || die "invalid milestones manifest"
-jq -e '.schemaVersion == 1 and (.includes | type == "array")' "$ISSUES_INDEX_FILE" >/dev/null || die "invalid issues index"
+jq -e '.schemaVersion == 1 and (.includes | type == "array") and ((.existingNumbers // {}) | type == "object")' "$ISSUES_INDEX_FILE" >/dev/null || die "invalid issues index"
+
+validate_existing_numbers() {
+  local unknown_key duplicate_number invalid_entry conflict_key
+
+  invalid_entry="$(jq -r '
+    (.existingNumbers // {}) |
+    to_entries |
+    map(select((.value | type) != "number" or (.value | floor) != .value or .value < 1)) |
+    .[0].key // empty
+  ' "$ISSUES_INDEX_FILE")"
+  [[ -z "$invalid_entry" ]] || die "existingNumbers contains invalid issue number for key: $invalid_entry"
+
+  unknown_key="$(jq -nr --slurpfile base "$ISSUES_BASE_FILE" --slurpfile index "$ISSUES_INDEX_FILE" '
+    ($base[0].issues | map(.key)) as $known |
+    (($index[0].existingNumbers // {}) | keys | map(select(. as $key | ($known | index($key)) == null))) |
+    .[0] // empty
+  ')"
+  [[ -z "$unknown_key" ]] || die "existingNumbers references unknown issue key: $unknown_key"
+
+  duplicate_number="$(jq -r '
+    [(.existingNumbers // {}) | to_entries[] | .value] |
+    group_by(.) |
+    map(select(length > 1) | .[0]) |
+    .[0] // empty
+  ' "$ISSUES_INDEX_FILE")"
+  [[ -z "$duplicate_number" ]] || die "duplicate existingNumbers issue number: $duplicate_number"
+
+  conflict_key="$(jq -nr --slurpfile base "$ISSUES_BASE_FILE" --slurpfile index "$ISSUES_INDEX_FILE" '
+    ($index[0].existingNumbers // {}) as $mapped |
+    [
+      $base[0].issues[] |
+      select(.existingNumber != null) |
+      select(($mapped[.key] // .existingNumber) != .existingNumber) |
+      .key
+    ] |
+    .[0] // empty
+  ')"
+  [[ -z "$conflict_key" ]] || die "existingNumbers conflicts with phase manifest for key: $conflict_key"
+}
+
+apply_existing_numbers() {
+  jq -n --slurpfile base "$ISSUES_BASE_FILE" --slurpfile index "$ISSUES_INDEX_FILE" '
+    ($index[0].existingNumbers // {}) as $mapped |
+    $base[0] |
+    .issues |= map(
+      . as $issue |
+      ($mapped[$issue.key] // null) as $number |
+      if $number == null then . else .existingNumber = $number end
+    )
+  ' >"$ISSUES_BASE_FILE.mapped"
+  mv "$ISSUES_BASE_FILE.mapped" "$ISSUES_BASE_FILE"
+}
 
 validate_execution_guidance() {
   [[ -f "$GUIDANCE_FILE" ]] || die "missing execution guidance manifest"
@@ -171,6 +223,8 @@ build_issues_manifest() {
     }
   ' "${files[@]}" >"$ISSUES_BASE_FILE"
 
+  validate_existing_numbers
+  apply_existing_numbers
   validate_execution_guidance
   resolve_execution_guidance
 
@@ -240,6 +294,10 @@ validate_references() {
   ' "$ISSUES_FILE" >/dev/null || die "duplicate key or unresolved parent/dependency/superseded reference"
   jq -e --slurpfile labels "$LABELS_FILE" '($labels[0].labels | map(.name)) as $known | all(.issues[].labels[]; . as $label | $known | index($label) != null)' "$ISSUES_FILE" >/dev/null || die "issue references undefined label"
   jq -e --slurpfile milestones "$MILESTONES_FILE" '($milestones[0].milestones | map(.key)) as $known | all(.issues[]; . as $issue | ($issue.milestone == null) or ($known | index($issue.milestone) != null))' "$ISSUES_FILE" >/dev/null || die "issue references undefined milestone"
+  jq -e '
+    [ .issues[] | select(.existingNumber != null) | .existingNumber ] as $numbers |
+    ($numbers | length) == ($numbers | unique | length)
+  ' "$ISSUES_FILE" >/dev/null || die "duplicate existingNumber across merged issue manifests"
 }
 
 load_remote_state() {
