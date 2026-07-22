@@ -1,0 +1,518 @@
+{
+  "schemaVersion": 1,
+  "defaults": {
+    "researchTasks": [
+      "Read the parent issue, blockers, linked ADRs/product documents, current implementation, and recent relevant pull requests before choosing an approach.",
+      "Prefer official documentation, primary sources, repository evidence, and measured behavior; record UNKNOWN — REQUIRES VALIDATION instead of inventing missing facts."
+    ],
+    "setupSteps": [
+      "Work from a clean, isolated branch; install the pinned repository prerequisites and confirm the documented baseline checks before changing behavior.",
+      "List the exact files, routes, data records, commands, external services, and human approvals affected by this issue before implementation starts."
+    ],
+    "implementationSteps": [
+      "Deliver the smallest end-to-end slice that satisfies the issue outcome; avoid unrelated refactors and speculative infrastructure.",
+      "Keep boundaries explicit so UI, catalog/data tooling, preserved Rust/WASM code, and release automation can be tested independently."
+    ],
+    "uiUxTasks": [
+      "State the user-facing impact explicitly; when UI is in scope, cover loading, empty, error, offline, keyboard, responsive, zoom, reduced-motion, and missing-media states.",
+      "Use the approved original Arcaea-inspired design system and do not copy Sekai Viewer, official game UI, or third-party wiki layouts or assets."
+    ],
+    "dataBackendTasks": [
+      "The Web MVP defaults to schema-validated, versioned static data and build-time tooling; do not introduce a hosted backend, account system, or database without an approved post-MVP trigger.",
+      "Preserve provenance, stable IDs, reference integrity, deterministic generation, and rollback to the last reviewed catalog or build."
+    ],
+    "soloExecution": [
+      "Execute in this order: research and evidence capture → decision or design note → failing test/check → minimal implementation → targeted verification → full applicable checks → PR evidence and human review.",
+      "Keep each work session reviewable for one maintainer; split newly discovered independent work into linked follow-up issues instead of expanding this issue silently."
+    ],
+    "validationSteps": [
+      "Run the narrowest relevant test first, then all checks required by the changed files; code or automation changes require `pnpm check`, and roadmap changes also require the roadmap shell tests and live dry-run.",
+      "Perform the manual acceptance flow from a clean browser or checkout and record exact commands, observed results, screenshots or reports, and any approved exception."
+    ],
+    "deliverables": [
+      "A focused pull request with intentional commits, updated documentation/data, and an acceptance-criteria checklist linked to reviewable evidence.",
+      "A concise record of decisions, rejected alternatives, residual risks, ownership, and the next dependency unlocked by completion."
+    ],
+    "risksAndRollback": [
+      "Do not hide legal, accessibility, security, performance, privacy, or maintenance uncertainty; record the exception owner and follow-up before merge.",
+      "Rollback by reverting the focused change and restoring the last validated catalog, asset manifest, configuration, or deployment artifact; document any non-automatic recovery step."
+    ]
+  },
+  "issues": [
+    {
+      "key": "web-mvp-roadmap",
+      "researchTasks": ["Compare the six-week issue graph with the accepted product brief, current repository state, maintainer capacity, and the Sekai Viewer findings that are genuinely reusable."],
+      "implementationSteps": ["Keep one critical path from discovery through public preview, ensure every phase gate has evidence, and move runtime/backend expansion behind explicit post-MVP decisions."],
+      "uiUxTasks": ["Verify the roadmap includes original UI research, design tokens, representative prototypes, accessibility, responsive behavior, and measured performance rather than a visual clone."],
+      "dataBackendTasks": ["Verify the critical path is static-catalog-first and that hosted services are represented only by measured decision triggers."],
+      "validationSteps": ["Audit all managed issues for owner, milestone, parent, blockers, acceptance criteria, execution guidance, and explicit MVP/non-MVP boundaries."],
+      "deliverables": ["Current issue hierarchy export, dependency audit, capacity/scope-cut table, and links to the canonical brief, design decisions, and release gate."],
+      "risksAndRollback": ["If six weeks becomes unrealistic, cut P1/P2 enhancements first while retaining legal provenance, catalog correctness, core routes, accessibility, security, and rollback readiness."]
+    },
+    {
+      "key": "week-1-epic",
+      "researchTasks": ["Confirm product, UI, data, legal, and workflow decisions are resolved before foundation code begins."],
+      "implementationSteps": ["Sequence charter/PRD/legal/UI/data decisions, surface contradictions, and close the gate only after human-required approvals are recorded."],
+      "uiUxTasks": ["Require research evidence and prototypes for home, explore, and song detail before approving reusable UI foundations."],
+      "dataBackendTasks": ["Require a static catalog ADR, provenance policy, and legal seed-data contract before implementation."],
+      "validationSteps": ["Run a gate review that samples every Week 1 deliverable and confirms Week 2 issues are unblocked without hidden decisions."],
+      "deliverables": ["Week 1 gate report with approved decisions, rejected alternatives, unresolved risks, and explicit go/no-go status."]
+    },
+    {
+      "key": "project-charter",
+      "researchTasks": ["Review sustainable solo-maintainer workflows, existing repository conventions, GPL obligations, fan-project wording, and comparable community contribution policies."],
+      "implementationSteps": ["Write the charter, contribution workflow, Definition of Ready, Definition of Done, human/AI responsibility boundaries, correction path, and links from the README."],
+      "uiUxTasks": ["Ensure contributor-facing documents are scannable, keyboard-readable, jargon-controlled, and provide examples for data, documentation, accessibility, and code contributions."],
+      "dataBackendTasks": ["Define how facts, sources, assets, generated catalog outputs, and future service decisions remain reviewable in repository history."],
+      "validationSteps": ["Tabletop-test one factual correction and one small UI change from issue selection through merge evidence; resolve every ambiguity found."],
+      "deliverables": ["`PROJECT_CHARTER.md`, aligned `CONTRIBUTING.md`, reusable readiness/done checklists, README links, and maintainer approval evidence."],
+      "risksAndRollback": ["Reject process that requires enterprise staffing or private-chat context; simplify any workflow that cannot be followed in roughly three focused hours per day."]
+    },
+    {
+      "key": "product-requirements",
+      "researchTasks": ["Interview or model ordinary-player lookup and discovery tasks, inspect current Arcaea information gaps, and compare at least several catalog/wiki products without adopting their information architecture blindly."],
+      "implementationSteps": ["Write personas, prioritized journeys, route taxonomy, page responsibilities, URL-state contract, non-goals, success measures, and acceptance scenarios."],
+      "uiUxTasks": ["Define desktop-first and narrow-screen journeys for home, explore, song, pack, partner, story, game topic, information, settings, legal, and error surfaces."],
+      "dataBackendTasks": ["Map every route to static catalog entities/indexes and identify which unknown or current information cannot be represented safely in MVP data."],
+      "validationSteps": ["Walk through primary journeys using wireframes and sample records; verify every filter/sort state is shareable and runtime/backend features are absent."],
+      "deliverables": ["Approved PRD, sitemap, user-flow diagrams, route/data matrix, explicit cuts, and measurable acceptance scenarios."],
+      "risksAndRollback": ["If a route lacks a validated user task or legal data path, remove it from MVP navigation and retain it as a post-MVP candidate."]
+    },
+    {
+      "key": "ui-research",
+      "researchTasks": ["Study at least eight references across game databases, documentation, data explorers, responsive galleries, and accessible information products; include Sekai Viewer as only one reference."],
+      "setupSteps": ["Capture comparable desktop/mobile screenshots or notes, establish a contrast-testing method, and prepare low-fidelity and high-fidelity design files with reusable tokens."],
+      "implementationSteps": ["Produce information-architecture findings, component/state inventory, two theme directions, wireframes, high-fidelity home/explore/song prototypes, and rejected alternatives."],
+      "uiUxTasks": ["Specify navigation density, search/filter behavior, card/table switching, image framing, spoiler/unknown states, focus order, 200% zoom, reduced motion, and touch targets."],
+      "dataBackendTasks": ["Prototype with representative normalized view models, long titles, missing images, uncertain constants, stale catalog status, and large result counts rather than idealized mock data."],
+      "validationSteps": ["Run preliminary WCAG contrast checks, keyboard walkthroughs, narrow-width review, performance/image assumptions review, and human approval against originality criteria."],
+      "deliverables": ["Research matrix, accepted visual direction, tokens, component inventory, state matrix, annotated prototypes, and reasons each rejected direction was declined."],
+      "risksAndRollback": ["Remove decorative effects that reduce readability or performance; fall back to neutral accessible primitives while preserving original Arcaea-inspired accents."]
+    },
+    {
+      "key": "data-contract-decision",
+      "researchTasks": ["Measure expected MVP record counts, update frequency, query/filter requirements, GitHub Pages constraints, browser caching, static JSON patterns from Sekai Viewer, and migration triggers for hosted search/API."],
+      "implementationSteps": ["Write an ADR defining entity boundaries, stable IDs, manifest/version fields, generated indexes/view models, loading API, stale/corrupt behavior, atomic publication, and future migration seams."],
+      "uiUxTasks": ["Define user-visible loading, unsupported-version, stale snapshot, partial-media, offline, and recovery messages before coding the loader."],
+      "dataBackendTasks": ["Choose static versioned artifacts for MVP, keep raw reviewed records separate from generated UI indexes, and define backend triggers using measured latency, dataset size, update volume, or collaboration needs."],
+      "validationSteps": ["Prototype loading representative catalog files under the GitHub Pages base path and verify deterministic output, caching semantics, failure states, and no hidden network database dependency."],
+      "deliverables": ["Accepted ADR, data-access interfaces, version compatibility table, failure-state contract, and hosted-service decision triggers."],
+      "risksAndRollback": ["If generated indexes become too large, split by domain or route before considering a server; retain a reader for the previous schema version during migration."]
+    },
+    {
+      "key": "legal-provenance",
+      "researchTasks": ["Review official Arcaea/lowiro terms and public sources, repository GPL scope, source-license compatibility, fan-content/takedown practices, and permission requirements for images, audio, charts, and prose."],
+      "implementationSteps": ["Define source hierarchy, fact/prose/media rules, source and asset record schemas, forbidden content, correction/takedown flow, disclaimer, and human approval points."],
+      "uiUxTasks": ["Specify visible provenance/review indicators, uncertainty wording, spoiler treatment, alt-text ownership, legal page placement, and a usable correction path."],
+      "dataBackendTasks": ["Require every published fact group and media asset to resolve to reviewable source/permission records; never store credentials or proprietary source files as evidence."],
+      "validationSteps": ["Audit a sample song, partner, story, and image record end-to-end; have the maintainer approve ambiguous licensing and publication decisions explicitly."],
+      "deliverables": ["Legal/provenance policy, source hierarchy, asset permission convention, forbidden-content list, disclaimer, correction/takedown process, and sample reviewed records."],
+      "risksAndRollback": ["When permission or attribution is uncertain, publish a neutral placeholder or omit the asset/content until evidence is approved; support prompt removal without a code redesign."]
+    },
+    {
+      "key": "metadata-schema",
+      "researchTasks": ["Inventory required fields and relationships for songs, charts, packs, partners, story, game topics, releases, sources, and assets; distinguish verified facts, maintainer summaries, unknowns, and version applicability."],
+      "setupSteps": ["Choose the schema/validation library already compatible with the planned TypeScript toolchain and prepare valid, boundary, and invalid fixtures without protected charts or audio."],
+      "implementationSteps": ["Define schemas, stable ID rules, cross-reference validators, size limits, review/provenance fields, seed records, generated type outputs, and deterministic validation commands."],
+      "uiUxTasks": ["Ensure schemas represent long/multilingual labels, unknown values, missing media, spoiler flags, aliases, and human-readable validation errors needed by every page template."],
+      "dataBackendTasks": ["Model normalized source records and build-time view-model generation rather than performing repeated multi-file joins in the browser."],
+      "validationSteps": ["Test missing IDs, duplicates, broken references, invalid URLs/protocols, unreviewed assets, unsupported versions, oversized content, and deterministic seed output."],
+      "deliverables": ["Versioned schemas, type generation, validator, legal seed catalog covering every page template, invalid fixture corpus, and schema documentation."],
+      "risksAndRollback": ["Avoid encoding speculative future fields; version incompatible changes and retain the previous validated seed snapshot for rollback."]
+    },
+    {
+      "key": "week-2-epic",
+      "researchTasks": ["Confirm all Week 1 decisions are approved and map each foundation issue to the smallest deployable wiki shell/catalog slice."],
+      "implementationSteps": ["Order quality gate, build migration, shell, design system, catalog loader, and asset pipeline so each produces independently testable output."],
+      "uiUxTasks": ["Require representative loading/error/empty/offline states and both themes in the foundation showcase before feature pages depend on them."],
+      "dataBackendTasks": ["Keep static data and media pipelines independent from UI components and prohibit speculative hosted services."],
+      "validationSteps": ["Run the Week 2 gate from a clean checkout and prove a validated seed record renders through the public shell under the deployment base path."],
+      "deliverables": ["Week 2 gate report, foundation architecture map, baseline bundle/build measurements, and next-phase readiness evidence."]
+    },
+    {
+      "key": "repo-quality",
+      "researchTasks": ["Inventory every Rust, WASM, frontend, content, roadmap, and build command; identify duplicated checks, platform differences, warning policy, and generated artifacts."],
+      "setupSteps": ["Verify pinned Rust, wasm target, Node, pnpm, jq, Bash/WSL, browser-test, and image-tool prerequisites from a clean Windows/WSL-compatible checkout."],
+      "implementationSteps": ["Create one documented quality command and aligned least-privilege CI jobs for format, lint, types, tests, catalog validation, Rust/WASM preservation, production build, and smoke checks."],
+      "uiUxTasks": ["Make failure output actionable for a solo maintainer and ensure public builds cannot expose debug/runtime routes or fixtures."],
+      "dataBackendTasks": ["Run schema/reference/asset validation before bundling and verify generated outputs are deterministic and intentionally tracked or ignored."],
+      "validationSteps": ["Run the command twice from clean state, inject representative failures for each stage, and compare CI/local behavior on supported environments."],
+      "deliverables": ["One-command quality gate, CI workflow, prerequisite/setup guide, failure-troubleshooting table, and clean-checkout evidence."],
+      "risksAndRollback": ["Split slow checks into clear CI jobs without weakening the merge gate; revert newly added tooling if it duplicates existing reliable checks without measurable value."]
+    },
+    {
+      "key": "web-shell",
+      "researchTasks": ["Review approved routes/prototypes, GitHub Pages routing options, theme initialization, error-boundary patterns, focus management, and minimal routing dependencies."],
+      "setupSteps": ["Create representative route fixtures, configure base-path testing, and define app-version/catalog-version diagnostics before replacing the debug screen."],
+      "implementationSteps": ["Build semantic header/navigation/footer, skip link, route layout, lazy route boundaries, settings/theme persistence, 404, loading, error, offline, and recovery states."],
+      "uiUxTasks": ["Test desktop navigation density, narrow-screen menu, visible focus, logical landmarks/headings, no-theme flash, direct-link recovery, and settings accessibility."],
+      "dataBackendTasks": ["Expose only a catalog repository interface to route components; keep Rust/WASM imports and hidden viewer fixtures outside the public entry bundle."],
+      "validationSteps": ["Unit-test settings and route states, keyboard-test all navigation, build with the repository base path, and smoke-test direct URLs/refresh on the selected Pages strategy."],
+      "deliverables": ["Public app shell, route map, settings/theme module, resilient state components, route tests, and bundle evidence excluding runtime surfaces."],
+      "risksAndRollback": ["If Pages history routing is unreliable, use the approved hash or fallback strategy rather than adding a server; retain the previous debug entry separately for local runtime work."]
+    },
+    {
+      "key": "rsbuild-migration",
+      "researchTasks": ["Compare current Vite-specific behavior with current Rsbuild/Rspack documentation, React 19 support, CSS/Tailwind integration, test tooling, asset imports, base paths, WASM isolation, and bundle analysis."],
+      "setupSteps": ["Capture current dev-start/build time, bundle composition, environment variables, aliases, raw fixture imports, and production output before changing configuration."],
+      "implementationSteps": ["Write the ADR, migrate scripts/config/plugins incrementally, preserve test commands and base-path output, remove Vite-only paths, and document rollback."],
+      "uiUxTasks": ["Verify HMR, error overlays, route loading, CSS ordering, theme initialization, and public asset URLs behave equivalently."],
+      "dataBackendTasks": ["Ensure static catalog and generated asset paths remain deterministic and runtime WASM is not pulled into the public bundle."],
+      "validationSteps": ["Compare before/after development startup, production build, bundle report, source maps, tests, GitHub Pages base path, and clean-install behavior."],
+      "deliverables": ["Migration ADR, Rsbuild configuration, updated scripts/lockfile/docs, benchmark comparison, bundle report, and removal list for obsolete Vite code."],
+      "risksAndRollback": ["Keep migration commits isolated so the prior Vite configuration can be restored if required plugins, tests, or deployment paths regress."]
+    },
+    {
+      "key": "design-system",
+      "researchTasks": ["Translate the approved prototypes into semantic tokens and minimal primitives; verify Tailwind CSS v4 integration, font licensing, contrast, zoom, motion, and high-density data presentation."],
+      "setupSteps": ["Create a component showcase with realistic long text, unknown data, missing images, errors, filters, tables, cards, focus states, and both themes."],
+      "implementationSteps": ["Implement semantic color/type/spacing/elevation/border/motion tokens and focused primitives for navigation, buttons, links, forms, cards, tables, filters, badges, media frames, prose, and feedback."],
+      "uiUxTasks": ["Document API, state variants, focus behavior, responsive rules, reduced-motion behavior, and misuse examples; prefer composition over a heavy component framework."],
+      "dataBackendTasks": ["Keep presentation components independent of raw catalog schemas by consuming typed view models and explicit unknown/provenance states."],
+      "validationSteps": ["Run automated contrast/accessibility checks, keyboard and 200% zoom review, narrow-width snapshots, reduced-motion review, and bundle-cost comparison."],
+      "deliverables": ["Token source, primitive library, showcase, usage documentation, accessibility results, and visual regression references for both themes."],
+      "risksAndRollback": ["Remove custom polygon/motion effects that harm readability or bundle cost; fall back to semantic CSS primitives without blocking feature work."]
+    },
+    {
+      "key": "static-data-loader",
+      "researchTasks": ["Use the approved data ADR and schemas to define browser loading, cache keys, compatibility, generated index size, failure recovery, and SSR-free GitHub Pages constraints."],
+      "setupSteps": ["Prepare valid, stale, corrupt, missing, unsupported-version, and cross-reference-invalid catalog fixtures plus a local static-server test path."],
+      "implementationSteps": ["Implement build-time validation/generation, manifest checksums, typed catalog repository, domain indexes/view models, cache/version handling, and explicit error classes/states."],
+      "uiUxTasks": ["Provide actionable loading, retry, stale, unsupported-version, offline, and partial-media messages without exposing internal stack traces."],
+      "dataBackendTasks": ["Keep raw normalized records, generated route indexes, and media metadata separate; perform joins at build time when practical and avoid runtime network databases."],
+      "validationSteps": ["Test deterministic generation, integrity failures, cache/version transitions, base-path loading, offline last-good snapshot behavior, and representative query performance."],
+      "deliverables": ["Catalog validator/generator, typed repository API, versioned artifacts, fixtures, failure-state components/contracts, and performance measurements."],
+      "risksAndRollback": ["If a generated index exceeds budget, split by domain or lazy route artifact; keep the last-good manifest and reader available for immediate rollback."]
+    },
+    {
+      "key": "asset-pipeline",
+      "researchTasks": ["Inventory permitted asset sources and terms, required page breakpoints, modern image-format support, GitHub Pages caching, checksums, duplicate detection, metadata stripping, and alt-text ownership."],
+      "setupSteps": ["Prepare licensed/open sample originals, placeholder assets, image tooling, deterministic output directories, and size/dimension budgets without importing protected game bundles."],
+      "implementationSteps": ["Define asset records and approval status, validate permissions/checksums/dimensions/alt decisions, generate responsive AVIF/WebP variants, and publish deterministic paths/manifests."],
+      "uiUxTasks": ["Reserve aspect ratio and dimensions, define art-direction/cropping, loading/failure placeholders, decorative-vs-informative alt rules, and reduced-data behavior."],
+      "dataBackendTasks": ["Use asset IDs/resolvers instead of hard-coded remote URLs; keep source originals according to permission terms and publish only reviewed derivatives."],
+      "validationSteps": ["Reject missing approval, checksum drift, duplicates, oversized output, invalid dimensions, unsafe paths, and missing alt decisions; measure layout shift and transfer size on representative pages."],
+      "deliverables": ["Asset schema/manifest, permission-evidence convention, optimization commands, reviewed samples, placeholder strategy, budgets, and audit report."],
+      "risksAndRollback": ["Omit or replace uncertain media immediately; restore the previous asset manifest and generated directory if optimization or licensing review fails."]
+    },
+    {
+      "key": "week-3-epic",
+      "researchTasks": ["Confirm foundation readiness and prioritize the home-to-explore-to-detail journey over secondary content."],
+      "implementationSteps": ["Coordinate shared templates, query-state utilities, catalog view models, provenance UI, and route tests before page-specific polish."],
+      "uiUxTasks": ["Require coherent list/detail navigation and complete states across all Week 3 pages."],
+      "dataBackendTasks": ["Use generated catalog indexes and keep page code free of repeated raw multi-file joins."],
+      "validationSteps": ["Run the full primary journey against seed data, missing/uncertain records, keyboard navigation, and the production base path."],
+      "deliverables": ["Week 3 gate report, journey evidence, page-state matrix, and performance snapshot."]
+    },
+    {
+      "key": "public-pages-epic",
+      "researchTasks": ["Map shared player questions and related-entity relationships across songs, packs, partners, story, and game topics."],
+      "implementationSteps": ["Define reusable page shells, provenance blocks, related-link patterns, media states, and domain view-model contracts before implementing every route separately."],
+      "uiUxTasks": ["Prevent dead ends, preserve back/share context, and keep dense facts readable without copying conventional wiki clutter."],
+      "dataBackendTasks": ["Require all public page data to come from validated static records/indexes and expose unknown/version state explicitly."],
+      "validationSteps": ["Test home → explore → detail → related entity loops and representative missing-data paths."],
+      "deliverables": ["Shared page-template contracts, relation map, state matrix, and cross-route acceptance evidence."]
+    },
+    {
+      "key": "homepage",
+      "researchTasks": ["Identify the minimum current/highlight information ordinary players need on landing, and verify each candidate module has a legal, versioned data source."],
+      "setupSteps": ["Prepare seed release/event/featured records, licensed or placeholder hero media, and narrow/slow/offline test scenarios."],
+      "implementationSteps": ["Build latest release/event, search entry, featured catalog links, concise project/game introduction, update status, disclaimer, and contribution path using reusable modules."],
+      "uiUxTasks": ["Keep primary discovery actions visible early, maintain text readability over media, avoid carousel dependency, and test keyboard/screen-reader order and responsive art treatment."],
+      "dataBackendTasks": ["Select featured/current content from reviewed catalog configuration rather than hard-coded component constants or a live backend."],
+      "validationSteps": ["Test current, no-current-event, missing-image, stale-catalog, offline, keyboard, narrow viewport, and production image/bundle budgets."],
+      "deliverables": ["Homepage route, reusable modules, catalog selection rules, metadata, route tests, accessibility evidence, and performance screenshot/report."],
+      "risksAndRollback": ["If current information cannot be maintained reliably, show the last reviewed release and catalog timestamp instead of an inaccurate live-looking module."]
+    },
+    {
+      "key": "explore",
+      "researchTasks": ["Analyze player search/filter tasks, expected dataset size, URLSearchParams behavior, locale/case normalization, deterministic sorting, and whether virtualization is measurably necessary."],
+      "setupSteps": ["Prepare varied records with aliases, long titles, equal sort keys, unknown constants, unavailable charts, and no-result combinations."],
+      "implementationSteps": ["Implement query parser/serializer, generated searchable view models, title/artist search, pack/difficulty/level/constant/BPM/availability filters, deterministic sort, reset, count, and no-result guidance."],
+      "uiUxTasks": ["Make controls keyboard-friendly, label active filters, preserve shareable state, support compact card/table presentation as approved, and avoid filter panels that dominate narrow screens."],
+      "dataBackendTasks": ["Perform indexing at build time, keep filter logic pure/testable, and add a hosted search service only after measured static limits exceed the approved budget."],
+      "validationSteps": ["Property/fixture-test query round trips and stable sort, manually test deep links/refresh/back-forward, and benchmark representative full-catalog filtering."],
+      "deliverables": ["Explore route, typed URL-state module, pure search/filter/sort functions, generated index contract, tests, and performance measurements."],
+      "risksAndRollback": ["If advanced filters or multiple view modes threaten the schedule, retain search plus the highest-value filters and record deferred controls separately."]
+    },
+    {
+      "key": "song-pack-pages",
+      "researchTasks": ["List common song/pack lookup questions and verify source/unknown behavior for title, artist, release, BPM, charts, difficulties, constants, note counts, aliases, and media."],
+      "setupSteps": ["Prepare complete, minimal, uncertain, future/unavailable, missing-art, and broken-related-entity fixtures."],
+      "implementationSteps": ["Build typed song and pack view models, semantic detail layouts, chart facts table, provenance/review block, related navigation, pack song list, metadata hooks, and domain not-found states."],
+      "uiUxTasks": ["Keep dense chart facts scannable at zoom/narrow widths, distinguish unknown from absent, reserve jacket dimensions, and exclude AFF/playback/analytics controls."],
+      "dataBackendTasks": ["Resolve bidirectional relations and derived display values during generation; page routes consume one prepared view model rather than joining raw files repeatedly."],
+      "validationSteps": ["Test complete/missing/uncertain records, bidirectional links, invalid IDs, images, keyboard table navigation, responsive layout, SEO hooks, and production base path."],
+      "deliverables": ["Song and pack routes, view-model generators, chart facts component, provenance UI, fixtures/tests, and representative page evidence."],
+      "risksAndRollback": ["Hide unsupported fields instead of guessing; use placeholders or omit media when permission is not approved."]
+    },
+    {
+      "key": "week-4-epic",
+      "researchTasks": ["Prioritize encyclopedia topics by validated user need, legal content path, and seed-data readiness."],
+      "implementationSteps": ["Reuse Week 3 page/data primitives for partners, story, game topics, and the version-update workflow; reject one-off infrastructure."],
+      "uiUxTasks": ["Require readable long-form/spoiler patterns and consistent related navigation."],
+      "dataBackendTasks": ["Prove one repeatable versioned content update and rollback without scraping or a production database."],
+      "validationSteps": ["Audit representative pages and execute a sample release update end-to-end."],
+      "deliverables": ["Week 4 gate report, coverage matrix, sample update diff, and unresolved content/legal gaps."]
+    },
+    {
+      "key": "partners",
+      "researchTasks": ["Identify verified partner/character fields, aliases, versioned attributes, related content, spoiler boundaries, and permitted art sources."],
+      "setupSteps": ["Prepare complete, art-less, spoiler-sensitive, alias-heavy, and version-specific partner fixtures."],
+      "implementationSteps": ["Build index/detail view models, concise verified facts, maintainer-summary separation, aliases, version/review indicators, related story/packs/releases, and licensed/placeholder media."],
+      "uiUxTasks": ["Provide accessible spoiler disclosure, image fallback, clear fact-vs-summary styling, keyboard index navigation, and no dead-end related links."],
+      "dataBackendTasks": ["Generate partner indexes and reverse relations at build time; retain source/asset IDs and version applicability in each view model."],
+      "validationSteps": ["Test spoiler controls with keyboard/assistive technology, missing art, uncertain data, aliases/search, cross-links, and responsive detail layouts."],
+      "deliverables": ["Partner index/detail routes, view models, spoiler/provenance components, fixtures/tests, and content/asset review evidence."],
+      "risksAndRollback": ["Omit unsourced lore or art; publish a concise placeholder record until reviewed information becomes available."]
+    },
+    {
+      "key": "story",
+      "researchTasks": ["Define story taxonomy/chronology from official sources, acceptable original-summary length, spoiler levels, uncertainty representation, and related entities."],
+      "setupSteps": ["Prepare short/long, locked/spoiler, uncertain-order, missing-relation, and table-of-contents fixtures using original placeholder prose."],
+      "implementationSteps": ["Build story index/detail view models, chronology filters, spoiler disclosure, concise original summaries, provenance/version blocks, related links, and accessible long-form layout."],
+      "uiUxTasks": ["Test readable measure/line-height, heading hierarchy, table of contents, focus after disclosure, copy/share behavior, and narrow/200% zoom layouts."],
+      "dataBackendTasks": ["Store summaries and chronology metadata as reviewed static records; never ingest or redistribute unlicensed long-form game/wiki text."],
+      "validationSteps": ["Editorial originality review, source/chronology audit, keyboard/screen-reader spoiler tests, long-page performance, and broken-relation checks."],
+      "deliverables": ["Story taxonomy, index/detail routes, original seed summaries, spoiler/TOC components, fixtures/tests, and editorial/provenance review."],
+      "risksAndRollback": ["If chronology or summary rights are uncertain, label uncertainty and reduce content to sourced factual metadata rather than reproducing text."]
+    },
+    {
+      "key": "game-topics",
+      "researchTasks": ["Inventory player questions and official/versioned sources for World Mode, Course Mode, achievements, and foundational mechanics; reject topics without maintainable evidence."],
+      "setupSteps": ["Prepare topic fixtures with aliases, version applicability, related entities, diagrams absent, and superseded mechanics."],
+      "implementationSteps": ["Define topic taxonomy/template, original concise explanations, applicability/review metadata, related navigation, information hub, and search index entries."],
+      "uiUxTasks": ["Use semantic sections, definition lists/tables only where appropriate, anchor navigation for long topics, and explicit outdated/unknown callouts."],
+      "dataBackendTasks": ["Generate topic/alias indexes and keep versioned facts in static records; avoid one component or schema per topic."],
+      "validationSteps": ["Review factual accuracy/version labels, template consistency, search aliases, broken links, keyboard anchors, and representative long/narrow layouts."],
+      "deliverables": ["Topic taxonomy/schema additions, reusable topic route/template, initial reviewed topics, search integration, tests, and source audit."],
+      "risksAndRollback": ["Cut low-confidence or maintenance-heavy topics first; retain a small high-quality encyclopedia rather than broad stale coverage."]
+    },
+    {
+      "key": "content-update",
+      "researchTasks": ["Map official release/version sources, update cadence, current manual catalog process, change categories, reviewer capacity, and legal/media review requirements."],
+      "setupSteps": ["Create a sandbox version snapshot and sample official update containing added, changed, removed, uncertain, and media-change records."],
+      "implementationSteps": ["Define intake issue template, source capture, normalized edits, generated diff/summary, schema/reference/link/permission/editorial checks, snapshot publication, changelog, and rollback procedure."],
+      "uiUxTasks": ["Define how users see catalog version, freshness, changed/removed content, stale data, and corrections without presenting unreviewed updates as current."],
+      "dataBackendTasks": ["Automate validation and diffing but never fact invention; keep reviewed version snapshots immutable and switch current publication atomically."],
+      "validationSteps": ["Execute the sample update end-to-end, deliberately fail each check, verify diff readability, publish a test snapshot, and dry-run rollback to the prior version."],
+      "deliverables": ["Release-update template, update runbook, diff generator/summary, validation pipeline, sample snapshot/changelog, and rollback evidence."],
+      "risksAndRollback": ["If an update is partially reviewed, keep the prior current snapshot and publish uncertainty only when the policy explicitly permits it."]
+    },
+    {
+      "key": "week-5-epic",
+      "researchTasks": ["Collect measured accessibility, responsive, performance, security, offline, SEO, and operational baselines for representative routes."],
+      "implementationSteps": ["Prioritize P0 defects and production risks; keep PWA/telemetry/SEO enhancements from masking core content or legal failures."],
+      "uiUxTasks": ["Require real-device/browser and assistive-technology evidence for primary flows."],
+      "dataBackendTasks": ["Audit catalog/asset/build supply chain and last-good snapshot recovery."],
+      "validationSteps": ["Run a consolidated quality review and record target, observed value, owner, and disposition for every exception."],
+      "deliverables": ["Week 5 quality report, budgets, threat model, exception register, and release blockers list."]
+    },
+    {
+      "key": "accessibility-performance",
+      "researchTasks": ["Establish WCAG-oriented criteria, supported browser/viewports, image and JS budgets, Core Web Vitals targets, assistive-technology checks, and current measured baselines."],
+      "setupSteps": ["Prepare automated axe/Lighthouse or equivalent checks, keyboard scripts, 200%/400% zoom cases, slow-network profiles, and representative heavy pages."],
+      "implementationSteps": ["Fix semantic/focus/name/contrast/zoom/motion issues, responsive overflow, image dimensions/formats/loading, route chunking, and measured long-task/layout-shift causes."],
+      "uiUxTasks": ["Test all primary flows keyboard-only and screen-reader landmarks/names; preserve content order and functionality at narrow widths and high zoom."],
+      "dataBackendTasks": ["Reduce generated payload/index/media size before adding runtime complexity; record catalog and asset contributions to each page budget."],
+      "validationSteps": ["Run automated and manual audits on home/explore/song/pack/partner/story/topic/settings/legal/error/offline surfaces and publish before/after measurements."],
+      "deliverables": ["Accessibility audit, performance report, fixed defects, budgets enforced in CI where stable, screenshots/traces, and approved exception register."],
+      "risksAndRollback": ["Disable costly visual effects, nonessential prefetching, or P1 features that prevent P0 accessibility/performance targets."]
+    },
+    {
+      "key": "pwa-offline",
+      "researchTasks": ["Evaluate actual offline user value, service-worker lifecycle, GitHub Pages caching, catalog/asset versioning, storage quotas, update prompts, takedown invalidation, and browser support."],
+      "setupSteps": ["Prepare two catalog versions, removed asset/content cases, offline/low-storage scenarios, and a clean way to inspect/unregister caches."],
+      "implementationSteps": ["Cache only the app shell and approved last-good versioned artifacts, implement update/stale/storage-error UI, and define activation/cleanup rules that cannot retain removed assets indefinitely."],
+      "uiUxTasks": ["Make install/update/offline states optional and understandable, preserve online recovery, and avoid blocking content with aggressive prompts."],
+      "dataBackendTasks": ["Key caches by immutable catalog/asset versions and keep legal removal/version revocation outside indefinitely cached opaque URLs."],
+      "validationSteps": ["Test first visit, repeat visit, update, failed update, offline navigation, quota failure, removed asset, cache cleanup, and service-worker rollback across supported browsers."],
+      "deliverables": ["PWA decision/implementation, cache policy, update/offline UI, tests, storage/takedown notes, and rollback/unregister runbook."],
+      "risksAndRollback": ["If lifecycle or legal invalidation cannot be made reliable before release, ship without PWA and retain normal browser caching only."]
+    },
+    {
+      "key": "security-hardening",
+      "researchTasks": ["Threat-model static catalog content, Markdown/prose rendering, external URLs, images/SVG, service workers, dependencies, Actions, generated artifacts, secrets, and GitHub Pages header limitations."],
+      "setupSteps": ["Inventory dependencies/actions/permissions, configure secret/dependency/content scans, and prepare unsafe protocol/HTML/path/SVG/manifest fixtures."],
+      "implementationSteps": ["Enforce safe URL/content schemas, avoid arbitrary HTML, pin/minimize actions/dependencies, add least-privilege workflows, dependency review, secret checks, SECURITY.md, and compensating controls."],
+      "uiUxTasks": ["Provide safe user-facing error/recovery states without leaking stack traces or encouraging unsafe copy/paste; clearly distinguish external links."],
+      "dataBackendTasks": ["Treat catalog and generated assets as untrusted build inputs, validate protocols/paths/content, and never place secrets or personal data in static outputs."],
+      "validationSteps": ["Execute the threat-model test cases, inspect workflow token permissions, dependency diff, generated bundle/content, service-worker scope, and hosting headers/limitations."],
+      "deliverables": ["Threat model, hardened validators/workflows, dependency/action inventory, security policy, test fixtures, residual-risk report, and incident/rollback notes."],
+      "risksAndRollback": ["Remove or render-as-text any content feature that cannot be sanitized reliably; disable vulnerable workflow/service-worker paths until corrected."]
+    },
+    {
+      "key": "ops-feedback",
+      "researchTasks": ["Determine the minimum diagnostics needed for a static site, privacy expectations, issue-report friction, uptime/link/freshness checks, and whether telemetry provides enough value to justify consent/operations."],
+      "implementationSteps": ["Define error boundary/support bundle fields, catalog/app versions, redaction guidance, issue forms, no-telemetry or opt-in decision, and lightweight documented health checks."],
+      "uiUxTasks": ["Create actionable error pages with retry/home/report paths and a copyable support summary that excludes personal browsing data, local files, secrets, and full URLs where unsafe."],
+      "dataBackendTasks": ["Keep diagnostics local/static by default; do not add an ingestion backend unless a later privacy/operations decision approves it."],
+      "validationSteps": ["Simulate route, catalog, asset, offline, storage, and unexpected errors; review the generated report for privacy and reproduce at least one report from a clean environment."],
+      "deliverables": ["Operations/telemetry decision, support bundle schema, error/report UI, issue template, redaction guidance, and health-check runbook."],
+      "risksAndRollback": ["If telemetry cannot be operated transparently and minimally, omit it; fall back to user-submitted redacted diagnostics and scheduled checks."]
+    },
+    {
+      "key": "seo-discovery",
+      "researchTasks": ["Review search-engine requirements for client-rendered GitHub Pages, canonical/base-path behavior, sitemap/robots, valid structured data, social preview licensing, and route metadata sources."],
+      "setupSteps": ["Prepare representative complete/missing-media/unknown records, deployment-host configuration, metadata snapshot tests, and a crawler/link-check environment."],
+      "implementationSteps": ["Generate deterministic titles/descriptions/canonicals/Open Graph data, licensed fallback social images, sitemap, robots policy, valid structured data, and 404/base-path handling."],
+      "uiUxTasks": ["Keep document titles and shared previews descriptive and honest; avoid exposing spoilers or uncertain facts in metadata without policy."],
+      "dataBackendTasks": ["Generate metadata from reviewed catalog view models during build; do not introduce a rendering server solely for speculative SEO."],
+      "validationSteps": ["Test representative metadata snapshots, canonical URLs, sitemap links, structured-data validation, social image existence/permission, and deployed direct links."],
+      "deliverables": ["Metadata generator/hooks, sitemap/robots, structured-data policy, social image strategy, automated tests, and deployed validation evidence."],
+      "risksAndRollback": ["Remove invalid structured data or unlicensed previews immediately; retain correct basic title/description/canonical metadata as the safe baseline."]
+    },
+    {
+      "key": "week-6-epic",
+      "researchTasks": ["Confirm all release blockers, content/legal audits, operational prerequisites, community boundaries, and rollback ownership before public preview."],
+      "implementationSteps": ["Sequence deploy, final content audit, contribution readiness, and full QA; prohibit release by checklist theater without evidence."],
+      "uiUxTasks": ["Require primary flow review on the deployed preview, not only local builds."],
+      "dataBackendTasks": ["Freeze and identify the exact catalog/asset versions included in the release and verify restoration."],
+      "validationSteps": ["Run the final gate, sample every release artifact, and obtain explicit maintainer sign-off for human-required decisions."],
+      "deliverables": ["Week 6 release-readiness report, deployment URL, version inventory, known issues, rollback evidence, and sign-off."]
+    },
+    {
+      "key": "mvp-qa",
+      "researchTasks": ["Build an acceptance matrix from the PRD, route/data contracts, legal policy, design states, security threat model, budgets, and release checklist."],
+      "setupSteps": ["Use a release-candidate commit/catalog/asset version, clean browser profiles, supported viewport/browser matrix, offline mode, accessibility tools, link checker, and deployment preview."],
+      "implementationSteps": ["Run route/content regression, primary journeys, keyboard/contrast/zoom/responsive/offline/SEO/performance/security/legal checks, broken-link/permission audit, and known-issue triage."],
+      "uiUxTasks": ["Verify the deployed experience for ordinary players, including recovery paths and all meaningful empty/error/missing-content states."],
+      "dataBackendTasks": ["Verify exact record counts/checksums, version labels, source/asset integrity, last-good snapshot, and no protected/runtime data in the public output."],
+      "validationSteps": ["Require every P0 acceptance row to link reproducible evidence; classify failures as blocker, approved exception, scope cut, or follow-up with owner."],
+      "deliverables": ["Release-readiness matrix/report, test logs, screenshots/audits, known-issues register, exception approvals, and go/no-go maintainer decision."],
+      "risksAndRollback": ["Do not release with unresolved legal/asset, critical accessibility/security, corrupted catalog, or broken primary-flow defects; revert to the last validated preview."]
+    },
+    {
+      "key": "release-deploy",
+      "researchTasks": ["Review current GitHub Pages and Actions deployment guidance, base-path/routing options, environments, artifact retention, permissions, cache headers, domain options, and rollback mechanisms."],
+      "setupSteps": ["Create a staging/release-candidate build, configure Pages environment and least-privilege token permissions, and identify the last-good deployment artifact/commit."],
+      "implementationSteps": ["Implement pinned build/deploy workflow, production base path, artifact upload, smoke checks, release checklist, version display, operations notes, and documented rollback/redeploy."],
+      "uiUxTasks": ["Verify direct links, refresh, assets, 404/recovery, theme, mobile navigation, and error/offline states on the deployed host."],
+      "dataBackendTasks": ["Deploy immutable app/catalog/asset artifacts together and record checksums/versions; no server/database is required."],
+      "validationSteps": ["Inspect workflow permissions, reproduce build from clean checkout, deploy preview, run smoke/link checks, and execute or dry-run rollback to a known commit/artifact."],
+      "deliverables": ["Pinned Pages workflow, release/rollback runbook, deployed preview, artifact/version inventory, smoke evidence, and future-hosting evaluation notes."],
+      "risksAndRollback": ["If history routing or headers cannot meet requirements, use the documented static fallback and compensating controls rather than adding infrastructure during release week."]
+    },
+    {
+      "key": "community-contribution",
+      "researchTasks": ["Review current charter/contribution draft, common contributor questions, issue-form capabilities, moderation capacity, legal/source evidence needs, accessibility reporting, and AI-assisted disclosure practices."],
+      "implementationSteps": ["Finalize CONTRIBUTING, Code of Conduct, bug/data/feature/accessibility/asset forms, source/content review checklist, maintainer boundaries, response expectations, and AI-assistance policy."],
+      "uiUxTasks": ["Make forms concise, accessible, and understandable without repository expertise; provide examples and avoid requesting private or proprietary data."],
+      "dataBackendTasks": ["Define PR-based catalog/source/asset changes and validation evidence; do not build moderation or account infrastructure for MVP."],
+      "validationSteps": ["Tabletop-submit a factual correction, accessibility bug, code change, and asset proposal; verify routing, required evidence, privacy, and maintainer workload."],
+      "deliverables": ["Contribution/community documents, issue forms, review checklists, tested example submissions, and explicit maintainer approval."],
+      "risksAndRollback": ["Reduce form categories or response commitments that a solo maintainer cannot sustain; close unsafe submissions with documented policy rather than improvised decisions."]
+    },
+    {
+      "key": "release-content-audit",
+      "researchTasks": ["Freeze the candidate catalog/asset manifest and identify high-impact facts, uncertain values, source links, prose, version labels, permission evidence, alt decisions, and relationship counts to audit."],
+      "setupSteps": ["Generate record/asset summaries, broken-reference/link reports, permission inventory, text-diff/originality review aids, and a reproducible audit checklist tied to commit/version."],
+      "implementationSteps": ["Review every published asset and high-impact record, sample lower-risk content, resolve or list exceptions, confirm placeholders, and produce signed catalog/media audit results."],
+      "uiUxTasks": ["Inspect rendered labels, unknown/uncertain states, alt text, spoilers, broken media, and content density on representative pages."],
+      "dataBackendTasks": ["Verify checksums, source/asset IDs, reference integrity, generated output counts, no protected files, and exact snapshot provenance."],
+      "validationSteps": ["Rerun validators/link checks after corrections and independently sample the final deployment against the frozen inventory."],
+      "deliverables": ["Final audit report with reviewer, commit, catalog/asset versions, counts, exceptions, correction links, and explicit publication sign-off."],
+      "risksAndRollback": ["Remove questionable content/media or hold the prior snapshot; never downgrade an unresolved licensing or high-impact accuracy defect to cosmetic severity."]
+    },
+    {
+      "key": "post-mvp-epic",
+      "researchTasks": ["Use production metrics, user feedback, maintenance cost, legal input availability, and MVP limitations to prioritize expansion rather than following technical novelty."],
+      "implementationSteps": ["Require a separate product/legal/privacy/performance/operations decision before each runtime, analytics, replay, dataset, or hosted-service program."],
+      "uiUxTasks": ["Keep expansion surfaces separate and user-value-led; avoid reintroducing the old debug viewer as the default product."],
+      "dataBackendTasks": ["Preserve static delivery until measured triggers justify services and define migration/rollback before adoption."],
+      "validationSteps": ["Review entry criteria and evidence for each child issue; close or defer work lacking measurable value or sustainable ownership."],
+      "deliverables": ["Prioritized post-MVP decision log, metrics/feedback evidence, approved next milestone, and explicit non-selected alternatives."]
+    },
+    {
+      "key": "runtime-integration-deferred",
+      "researchTasks": ["Measure demand for chart visualization, review legal input paths, current Rust/WASM capabilities, bundle cost, browser performance, accessibility, mobile UX, and maintenance boundaries."],
+      "implementationSteps": ["Write a new ADR/product flow, define an isolated viewer entry and typed boundary, then integrate one legal deterministic vertical slice without coupling wiki pages to runtime internals."],
+      "uiUxTasks": ["Design import/input consent, unsupported-chart diagnostics, controls, loading/error states, keyboard operation, reduced motion, and a clear return to wiki content."],
+      "dataBackendTasks": ["Keep processing local-first by default; do not upload chart/replay data or add a backend without a separate privacy decision."],
+      "validationSteps": ["Benchmark bundle/startup/rendering, test supported/unsupported/legal fixtures, accessibility, failure isolation, and verify wiki routes remain unaffected."],
+      "deliverables": ["Approved runtime ADR/PRD, isolated entry/bundle contract, legal fixture path, prototype, benchmarks, tests, and maintenance/rollback plan."],
+      "risksAndRollback": ["If legal inputs, accessibility, or performance are unresolved, keep runtime local/developer-only and preserve the stable wiki release."]
+    },
+    {
+      "key": "fixture-corpus-post",
+      "researchTasks": ["Define supported AFF constructs, malformed classes, licensing/creation provenance, minimization rules, and gaps in the current regression corpus."],
+      "implementationSteps": ["Create hand-authored/minimized legal fixtures with provenance metadata, expected diagnostics/scenes, naming conventions, and contribution guidance."],
+      "uiUxTasks": ["Include fixtures that exercise user-facing diagnostics and boundary states without requiring protected visuals or audio."],
+      "dataBackendTasks": ["Keep fixtures repository-local and deterministic; do not fetch official charts during tests."],
+      "validationSteps": ["Run parser/timing/renderer tests, mutation/minimization review, duplicate coverage analysis, and license/provenance audit."],
+      "deliverables": ["Expanded legal fixture corpus, provenance index, expected outputs, coverage matrix, and contributor documentation."],
+      "risksAndRollback": ["Remove any fixture with uncertain origin immediately and replace it with a minimal hand-authored equivalent."]
+    },
+    {
+      "key": "parser-roadmap-post",
+      "researchTasks": ["Inventory AFF syntax from permitted documentation and current fixtures, user value, implementation complexity, error-recovery behavior, and unsupported construct frequency."],
+      "implementationSteps": ["Publish a support matrix and phased parser plan with exact syntax, diagnostics, tests, non-goals, compatibility, and legal fixture requirements."],
+      "uiUxTasks": ["Define how unsupported or partially supported charts are explained without silent misrendering."],
+      "dataBackendTasks": ["Keep parser domain logic in Rust and expose versioned DTOs rather than duplicating parsing in TypeScript or a service."],
+      "validationSteps": ["Review each proposed construct against fixtures/tests and reject roadmap items without a legal reproducible case."],
+      "deliverables": ["AFF support matrix, prioritized parser milestones, diagnostic policy, fixture dependencies, and acceptance-test catalog."],
+      "risksAndRollback": ["Prefer explicit unsupported diagnostics to permissive incorrect parsing; gate compatibility changes behind contract versions."]
+    },
+    {
+      "key": "renderer-tests-post",
+      "researchTasks": ["Define timing/projection/visibility invariants, official-physics uncertainty, deterministic SVG/scene expectations, performance thresholds, and current coverage gaps."],
+      "implementationSteps": ["Add focused timing, snapshot, scene-IR, SVG, property/regression, and benchmark tests without claiming unsupported official fidelity."],
+      "uiUxTasks": ["Cover visual failure states and stable debug/production distinctions needed by any future viewer UI."],
+      "dataBackendTasks": ["Keep renderer output deterministic and browser-independent; benchmark Rust/WASM boundary serialization separately."],
+      "validationSteps": ["Run full Rust/WASM/frontend regression, inspect golden changes, verify determinism across repeated runs, and document known model differences."],
+      "deliverables": ["Expanded test suite, invariant documentation, reviewed goldens, performance baseline, and known-limitations update."],
+      "risksAndRollback": ["Do not update goldens blindly; revert behavior changes lacking an explained invariant or approved model decision."]
+    },
+    {
+      "key": "analytics-post",
+      "researchTasks": ["Identify player questions, mathematically defensible metrics, required chart inputs, explainability, bias/misuse risks, computational cost, and comparable research—not leaderboard novelty."],
+      "implementationSteps": ["Specify each metric formally, implement deterministic Rust calculations, expose versioned results with explanations/limitations, and add one player-facing analysis prototype."],
+      "uiUxTasks": ["Show definitions, contributing factors, uncertainty, and comparisons without presenting subjective difficulty claims as objective truth."],
+      "dataBackendTasks": ["Run locally from legal chart inputs by default; persist or aggregate nothing without a separate privacy/platform decision."],
+      "validationSteps": ["Use hand-calculated fixtures, invariance/property tests, sensitivity analysis, performance benchmarks, and expert review of interpretation."],
+      "deliverables": ["Metric specification, deterministic implementation, tests, explainability UI, limitations/bias document, and versioned contract."],
+      "risksAndRollback": ["Remove metrics that cannot be explained or validated; never infer player skill or difficulty from unsupported proxies."]
+    },
+    {
+      "key": "wasm-contract-post",
+      "researchTasks": ["Audit current JSON envelopes, duplicated TypeScript types, version negotiation, serialization cost, error taxonomy, compatibility needs, and generated-binding options."],
+      "implementationSteps": ["Define contract versioning/compatibility, generate or validate TS types from Rust-owned schemas, harden envelopes/errors, and isolate public runtime entry points."],
+      "uiUxTasks": ["Map typed boundary errors to actionable accessible UI states without exposing internal details."],
+      "dataBackendTasks": ["Keep browser/runtime contracts independent from wiki catalog contracts and avoid service coupling."],
+      "validationSteps": ["Add compatibility fixtures, schema/type drift checks, malformed response tests, serialization benchmarks, and old/new consumer tests."],
+      "deliverables": ["Contract ADR, generated/validated types, compatibility matrix, hardened boundary, tests, and migration guide."],
+      "risksAndRollback": ["Retain the previous contract adapter during migration; reject silent breaking changes."]
+    },
+    {
+      "key": "production-dataset-post",
+      "researchTasks": ["Measure catalog size, update/contribution volume, review latency, dispute rate, provenance burden, storage/build time, and maintainer capacity after MVP."],
+      "implementationSteps": ["Design contribution queues, validation/review states, immutable snapshot publication, provenance history, governance, corrections, and rollback only for demonstrated scale needs."],
+      "uiUxTasks": ["Make review status, freshness, uncertainty, and corrections understandable without exposing contributor-private data."],
+      "dataBackendTasks": ["Evaluate repository/CI-first scaling before a database; define import/export and snapshot contracts so any future system remains replaceable."],
+      "validationSteps": ["Pilot with representative contribution volume, measure maintainer time and failure recovery, and test snapshot reproducibility/rollback."],
+      "deliverables": ["Measured scale report, approved operating model, pilot workflow, governance/provenance rules, snapshot design, and rollback evidence."],
+      "risksAndRollback": ["If operations exceed solo capacity, limit accepted scope/update cadence rather than automate unreviewed publication."]
+    },
+    {
+      "key": "backend-post",
+      "researchTasks": ["Measure static search latency, bundle/index size, update frequency, collaboration, personalization, privacy, uptime, cost, observability, and operational constraints before considering hosted services."],
+      "setupSteps": ["Create reproducible load/query/update scenarios and compare free/low-cost GitHub Student or open-source options against the static baseline."],
+      "implementationSteps": ["Write an ADR with explicit triggers, compare no-backend/static enhancements/serverless/API/database options, define API/data ownership, auth/privacy only if required, migration, deployment, observability, backup, and rollback."],
+      "uiUxTasks": ["Define degraded/offline behavior and ensure the public catalog remains usable when the optional service is unavailable."],
+      "dataBackendTasks": ["Prefer stateless search or read APIs before persistence; keep canonical exports/versioned snapshots so the service can be rebuilt or removed."],
+      "validationSteps": ["Benchmark a prototype against acceptance thresholds, cost ceiling, failure modes, rate limits, security/privacy review, backup restore, and static fallback."],
+      "deliverables": ["Measured trigger report, options matrix, ADR, prototype if justified, API/data contracts, cost/operations model, security/privacy review, and rollback plan."],
+      "risksAndRollback": ["Choose no backend when benefits do not exceed operational cost; preserve and test the static fallback before any cutover."]
+    },
+    {
+      "key": "replay-post",
+      "researchTasks": ["Identify supported legal replay/import formats, player value, sensitive fields, consent, browser storage/quota, deletion, threat model, runtime requirements, and misuse risks."],
+      "implementationSteps": ["Write privacy/product ADR, implement local parsing/storage lifecycle and explicit consent/deletion, then integrate one isolated analysis flow without default upload or tracking."],
+      "uiUxTasks": ["Explain what is read/stored, unsupported/corrupt inputs, progress, deletion, export, and privacy status; keep controls keyboard-accessible."],
+      "dataBackendTasks": ["Keep replay/personal data local-first and encrypted only when a demonstrated local threat requires it; hosted sync requires a separate security/privacy decision."],
+      "validationSteps": ["Test consent/no-consent, malformed/large inputs, quota failure, refresh/recovery, deletion verification, privacy inspection, and runtime isolation."],
+      "deliverables": ["Privacy/product ADR, supported-format contract, local-first prototype, lifecycle tests, threat model, user documentation, and deletion evidence."],
+      "risksAndRollback": ["Disable import and clear local schema/versioned storage when privacy or format safety cannot be guaranteed; never silently retain or upload data."]
+    }
+  ]
+}
