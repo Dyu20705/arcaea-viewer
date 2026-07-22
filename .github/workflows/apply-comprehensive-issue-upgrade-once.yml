@@ -50,7 +50,7 @@ jobs:
 
           jq -e '
             all(.[ ];
-              test("^(roadmap/|scripts/bootstrap-roadmap[.]sh$|tests/roadmap/|docs/superpowers/|scripts/apply-comprehensive-issue-upgrade-once[.]sh$|[.]github/workflows/apply-comprehensive-issue-upgrade-once[.]yml$)")
+              test("^(roadmap/|scripts/bootstrap-roadmap[.]sh$|tests/roadmap/|docs/superpowers/|scripts/apply-comprehensive-issue-upgrade-once[.]sh$|[.]github/workflows/apply-comprehensive-issue-upgrade-once[.]yml$|[.]github/workflows/ci[.]yml$|[.]github/workflows/bootstrap-roadmap[.]yml$)")
             )
           ' changed-files.json >/dev/null
 
