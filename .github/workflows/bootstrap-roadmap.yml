@@ -1,0 +1,135 @@
+name: Bootstrap web MVP roadmap
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run reads GitHub and reports changes; apply writes the reconciled roadmap"
+        required: true
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+      phase:
+        description: "Manifest phase to process"
+        required: true
+        type: choice
+        options:
+          - all
+          - roadmap
+          - week-1
+          - week-2
+          - week-3
+          - week-4
+          - week-5
+          - week-6
+          - post-mvp
+          - cleanup
+        default: all
+      start_date:
+        description: "Roadmap start date used for milestone due dates (YYYY-MM-DD)"
+        required: true
+        type: string
+        default: "2026-07-14"
+      force_update:
+        description: "Reconcile managed issue state, parents, and dependencies exactly"
+        required: true
+        type: boolean
+        default: false
+      close_superseded:
+        description: "Allow issues marked superseded to be closed as not planned"
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: bootstrap-web-mvp-roadmap
+  cancel-in-progress: false
+
+env:
+  INPUT_MODE: ${{ inputs.mode }}
+  INPUT_PHASE: ${{ inputs.phase }}
+  INPUT_START_DATE: ${{ inputs.start_date }}
+  INPUT_FORCE_UPDATE: ${{ inputs.force_update }}
+  INPUT_CLOSE_SUPERSEDED: ${{ inputs.close_superseded }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact workflow revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate roadmap automation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n scripts/bootstrap-roadmap.sh
+          bash -n tests/roadmap/test-bootstrap-roadmap.sh
+          bash tests/roadmap/test-bootstrap-roadmap.sh
+
+  plan:
+    if: ${{ inputs.mode == 'dry-run' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      ROADMAP_SLEEP_SECONDS: "0"
+    steps:
+      - name: Checkout exact workflow revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Read GitHub state and print reconciliation plan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          args=(
+            --dry-run
+            --phase "$INPUT_PHASE"
+            --start-date "$INPUT_START_DATE"
+          )
+          [[ "$INPUT_FORCE_UPDATE" == "true" ]] && args+=(--force-update)
+          [[ "$INPUT_CLOSE_SUPERSEDED" == "true" ]] && args+=(--close-superseded)
+          bash scripts/bootstrap-roadmap.sh "${args[@]}"
+
+  apply:
+    if: ${{ inputs.mode == 'apply' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Checkout exact workflow revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Apply reconciled roadmap
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          args=(
+            --apply
+            --phase "$INPUT_PHASE"
+            --start-date "$INPUT_START_DATE"
+          )
+          [[ "$INPUT_FORCE_UPDATE" == "true" ]] && args+=(--force-update)
+          [[ "$INPUT_CLOSE_SUPERSEDED" == "true" ]] && args+=(--close-superseded)
+          bash scripts/bootstrap-roadmap.sh "${args[@]}"

@@ -1,0 +1,23 @@
+{
+  "name": "arcaea-viewer",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm run wasm:build && pnpm --filter @arcaea-viewer/web dev",
+    "build": "pnpm run wasm:build && pnpm --filter @arcaea-viewer/web build",
+    "test": "pnpm run test:rust && pnpm run test:web",
+    "lint": "pnpm --filter @arcaea-viewer/web lint",
+    "fmt": "cargo fmt && pnpm --filter @arcaea-viewer/web fmt",
+    "check": "node tools/check.mjs",
+    "wasm:build": "wasm-pack build crates/wasm --target web --out-dir pkg",
+    "test:rust": "cargo test --workspace",
+    "test:web": "pnpm --filter @arcaea-viewer/web test"
+  },
+  "devDependencies": {
+    "wasm-pack": "0.15.0"
+  }
+}

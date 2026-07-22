@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "phase": "roadmap",
+  "issues": [
+    {
+      "key": "web-mvp-roadmap",
+      "title": "[Roadmap] Arcaea-Viewer Web MVP 0.1 — six-week production-grade fan wiki",
+      "phase": "roadmap",
+      "milestone": "week-1",
+      "labels": [
+        "type:epic",
+        "area:product",
+        "priority:p0",
+        "status:human-required"
+      ],
+      "outcome": "Deliver a small public Arcaea fan wiki that is fast, accessible, visually distinctive, legally reviewable, community-ready, and deployable without a production backend.",
+      "scope": [
+        "Track the six weekly stage gates.",
+        "Keep runtime/viewer work outside the MVP critical path.",
+        "Link every active issue through sub-issues and dependencies.",
+        "Record the post-MVP expansion path."
+      ],
+      "nonGoals": [],
+      "uxRequirements": [],
+      "technicalConstraints": [],
+      "acceptanceCriteria": [
+        "All six phase epics exist and have managed sub-issues.",
+        "MVP exclusions are visible.",
+        "The public-preview gate is represented by a final QA/release issue.",
+        "Post-MVP runtime and platform issues remain separated."
+      ],
+      "testPlan": [],
+      "evidence": [
+        "Screenshot or export of the issue hierarchy.",
+        "Link to the accepted product brief and roadmap."
+      ],
+      "definitionOfDone": [
+        "Acceptance criteria are verified.",
+        "Relevant documentation and tests are updated.",
+        "No unreviewed legal, accessibility, security, or performance exception is introduced."
+      ],
+      "parent": null,
+      "blockedBy": [],
+      "assignees": [
+        "Dyu20705"
+      ],
+      "state": "open",
+      "stateReason": null
+    }
+  ]
+}

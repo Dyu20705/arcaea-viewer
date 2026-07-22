@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="360" viewBox="0 0 920 360" role="img" aria-label="Timing snapshot timeline">
+<title>Arcaea-Viewer Timing Snapshot Timeline</title>
+<rect width="100%" height="100%" fill="#fbfbf8"/>
+<style>text{font-family:Consolas,monospace;font-size:13px;fill:#1f2933}.small{font-size:11px}.axis{stroke:#25313f;stroke-width:2}.tick{stroke:#6b7280;stroke-width:1}.cursor{stroke:#d21f3c;stroke-width:3}.timing{fill:#6d5dfc}.tap{fill:#1f9d55}.hold{fill:#e5a50a}.arc{fill:#0077b6}.passed{opacity:.45}.active{stroke:#111827;stroke-width:3}.upcoming{stroke:#111827;stroke-width:1;stroke-dasharray:5 3}</style>
+<text x="30" y="32" font-size="20" font-weight="700">Timing Snapshot Demo</text>
+<text x="30" y="56">Fixture: fixtures\mixed_events.aff</text>
+<text x="30" y="76">Playback: 500ms | Tempo: 120.000 BPM | Beat: 1.000</text>
+<text x="30" y="96">Range: -500ms..5500ms</text>
+<line class="axis" x1="80" y1="130" x2="860" y2="130"/>
+<line class="tick" x1="80" y1="122" x2="80" y2="138"/>
+<text class="small" x="80" y="156" text-anchor="middle">-500ms</text>
+<line class="tick" x1="275" y1="122" x2="275" y2="138"/>
+<text class="small" x="275" y="156" text-anchor="middle">1000ms</text>
+<line class="tick" x1="470" y1="122" x2="470" y2="138"/>
+<text class="small" x="470" y="156" text-anchor="middle">2500ms</text>
+<line class="tick" x1="665" y1="122" x2="665" y2="138"/>
+<text class="small" x="665" y="156" text-anchor="middle">4000ms</text>
+<line class="tick" x1="860" y1="122" x2="860" y2="138"/>
+<text class="small" x="860" y="156" text-anchor="middle">5500ms</text>
+<line id="playback-cursor" class="cursor" x1="210" y1="110" x2="210" y2="300"/>
+<text x="210" y="108" text-anchor="middle" fill="#d21f3c">cursor</text>
+<circle class="timing" cx="145" cy="130" r="7"><title>Timing 0ms 120.000 BPM</title></circle>
+<text class="small" x="145" y="114" text-anchor="middle">timing 120</text>
+<circle class="tap upcoming" cx="275" cy="214" r="8"><title>Tap #0 Upcoming</title></circle>
+<text x="289" y="218">Tap #0 Upcoming</text>
+<rect class="hold upcoming" x="340" y="240" width="195" height="16" rx="2"><title>Hold #1 Upcoming</title></rect>
+<text x="545" y="252">Hold #1 Upcoming</text>
+<rect class="arc upcoming" x="561" y="274" width="234" height="16" rx="2"><title>Arc #2 Upcoming</title></rect>
+<text x="805" y="286">Arc #2 Upcoming</text>
+<text x="30" y="315" font-weight="700">Legend:</text>
+<text x="100" y="315">Timing dot | Tap circle | Hold/Arc bar | dashed=Upcoming solid=Active faded=Passed</text>
+<text x="30" y="340">Summary: Upcoming=3 Active=0 Passed=0</text>
+</svg>

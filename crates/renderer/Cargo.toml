@@ -1,0 +1,15 @@
+[package]
+name = "arcaea-viewer-renderer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+arcaea-viewer-core = { path = "../core" }
+arcaea-viewer-timing = { path = "../timing" }
+
+[dev-dependencies]
+arcaea-viewer-parser = { path = "../parser" }

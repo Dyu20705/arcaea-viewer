@@ -1,0 +1,3 @@
+timing(0,120.000,4);
+timinggroup(noinput){
+(1000,1);

@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/core",
+    "crates/parser",
+    "crates/timing",
+    "crates/renderer",
+    "crates/analytics",
+    "crates/wasm",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-only"
+repository = "https://github.com/Dyu20705/arcaea-viewer"
+rust-version = "1.91"
