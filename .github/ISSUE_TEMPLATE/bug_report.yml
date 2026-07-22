@@ -1,0 +1,116 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Arcaea-Viewer.
+title: "[Bug] "
+labels: ["type:qa"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Arcaea-Viewer is currently building a static, source-aware fan-wiki MVP while preserving a separate Rust/WASM prototype for later evaluation.
+
+        Do not post secrets, private account data, proprietary chart or audio files, unlicensed assets, or sensitive security/licensing evidence in a public issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and did not find an equivalent report.
+          required: true
+        - label: This report contains no secrets, private data, proprietary game files, or unlicensed media.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Select the closest project surface.
+      options:
+        - Public wiki UI or navigation
+        - Static catalog, content, or provenance
+        - Accessibility, responsive behavior, or performance
+        - Rust/WASM parser, timing, or renderer prototype
+        - Build, CI, release, or repository tooling
+        - Roadmap automation or managed GitHub issues
+        - Documentation or contributor workflow
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: Describe exactly what happened, including visible errors or incorrect data.
+      placeholder: What did you observe?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe the correct result and why it is expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest deterministic sequence that reproduces the problem.
+      placeholder: |
+        1. Start from commit/version ...
+        2. Open route or run command ...
+        3. Use input or fixture ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Use N/A where a field does not apply.
+      value: |
+        - Commit, branch, or deployment URL:
+        - OS:
+        - Browser and version:
+        - Device or viewport:
+        - Node, pnpm, Rust, or wasm-pack version:
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: source-evidence
+    attributes:
+      label: Source or correctness evidence
+      description: For factual/content bugs, provide the official or reviewable source. For code bugs, provide the relevant fixture, test, or specification. Use N/A with a reason when not applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only the minimal relevant output after removing tokens, paths, and private information.
+      render: shell
+    validations:
+      required: false
+
+  - type: upload
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+      description: Upload evidence only when it contains no private or unlicensed material.
+    validations:
+      required: false
+
+  - type: textarea
+    id: investigation
+    attributes:
+      label: Investigation notes
+      description: Optional. Include suspected cause, affected files, attempted fixes, or a proposed regression test.
+    validations:
+      required: false

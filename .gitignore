@@ -1,15 +1,28 @@
-target/
-.vscode/
-ArcCreate/
-sekai-viewer/
-crates/wasm/pkg/
+# JavaScript / pnpm
 node_modules/
-apps/*/dist/
+.pnpm-store/
 apps/*/node_modules/
+apps/*/dist/
+
+# Rust
+target/
+crates/wasm/pkg/
+
+# Tests and coverage
+coverage/
 apps/*/playwright-report/
 apps/*/test-results/
-coverage/
-.pnpm-store/
+
+# Editors and agents
+.vscode/
 .agents/
+
+# Local development files
 test-script.txt
+
+# External/reference repositories
+ArcCreate/
+sekai-viewer/
+
+# Generated artifacts
 artifacts/
