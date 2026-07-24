@@ -6,6 +6,30 @@
       "Dyu20705"
     ]
   },
+  "existingNumbers": {
+    "web-mvp-roadmap": 34,
+    "week-1-epic": 35,
+    "week-2-epic": 36,
+    "rsbuild-migration": 37,
+    "design-system": 38,
+    "static-data-loader": 39,
+    "asset-pipeline": 40,
+    "week-3-epic": 41,
+    "homepage": 42,
+    "explore": 43,
+    "song-pack-pages": 44,
+    "week-4-epic": 45,
+    "partners": 46,
+    "story": 47,
+    "game-topics": 48,
+    "content-update": 49,
+    "week-5-epic": 50,
+    "seo-discovery": 51,
+    "week-6-epic": 52,
+    "community-contribution": 53,
+    "release-content-audit": 54,
+    "post-mvp-epic": 55
+  },
   "includes": [
     "issues/roadmap.json",
     "issues/week-1.json",

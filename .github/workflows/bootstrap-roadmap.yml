@@ -71,7 +71,9 @@ jobs:
           set -Eeuo pipefail
           bash -n scripts/bootstrap-roadmap.sh
           bash -n tests/roadmap/test-bootstrap-roadmap.sh
+          bash -n tests/roadmap/test-existing-number-map.sh
           bash tests/roadmap/test-bootstrap-roadmap.sh
+          bash tests/roadmap/test-existing-number-map.sh
 
   plan:
     if: ${{ inputs.mode == 'dry-run' }}
